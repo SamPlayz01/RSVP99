@@ -1,1 +1,109 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>RSVP99 — Event Management</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Figtree:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="sidebar" id="sidebar">
+    <a class="brand" href="#dashboard"><span class="logo">99</span><span>RSVP99</span></a>
+    <nav id="nav">
+      <a href="#dashboard">Dashboard</a>
+      <a href="#events">Events</a>
+      <a href="#create">Create event</a>
+      <a href="#guests">Guests</a>
+      <a href="#calendar">Calendar</a>
+      <a href="#checkin">Check-in</a>
+      <a href="#reminders">Reminders</a>
+      <a href="#reports">Reports</a>
+    </nav>
+    <button class="btn ghost" id="theme">Switch theme</button>
+  </aside>
 
+  <main>
+    <header class="topbar"><button class="btn ghost" id="menu" aria-label="Open menu">Menu</button><span class="brand-sm">RSVP99</span></header>
+
+    <section id="v-dashboard" class="view">
+      <div class="head"><div><h1 id="hello">Dashboard</h1><p class="muted">Your events and guest responses at a glance.</p></div><a class="btn" href="#create">New event</a></div>
+      <div class="stats" id="stats"></div>
+      <div class="two">
+        <div class="panel"><h2>RSVP breakdown</h2><div id="ring"></div></div>
+        <div class="panel"><h2>Upcoming events</h2><div id="upcoming"></div></div>
+      </div>
+      <div class="panel"><h2>Latest responses</h2><div id="recent"></div></div>
+    </section>
+
+    <section id="v-events" class="view">
+      <div class="head"><div><h1>Events</h1><p class="muted">View, edit, delete and organise.</p></div>
+        <div class="row"><input id="evSearch" placeholder="Search events"><select id="evSort"><option value="date">Soonest first</option><option value="name">Name A–Z</option><option value="guests">Most guests</option></select></div></div>
+      <div class="grid" id="evGrid"></div>
+    </section>
+
+    <section id="v-create" class="view">
+      <div class="head"><div><h1 id="formTitle">Create event</h1><p class="muted">Fill in the details. A shareable page is made automatically.</p></div></div>
+      <form class="panel form" id="evForm" novalidate>
+        <label>Event name<input name="name" maxlength="80"><span class="err"></span></label>
+        <label>Description<textarea name="desc" rows="4" maxlength="600"></textarea><span class="err"></span></label>
+        <div class="row3">
+          <label>Date<input type="date" name="date"><span class="err"></span></label>
+          <label>Time<input type="time" name="time"><span class="err"></span></label>
+          <label>Location<input name="location" maxlength="100"><span class="err"></span></label>
+        </div>
+        <label>Cover image (optional)<input type="file" name="image" accept="image/*"><span class="err"></span></label>
+        <img id="preview" alt="" hidden>
+        <div class="row"><button class="btn" type="submit">Save event</button><button class="btn ghost" type="button" id="cancelEdit">Clear form</button></div>
+      </form>
+    </section>
+
+    <section id="v-page" class="view"></section>
+
+    <section id="v-guests" class="view">
+      <div class="head"><div><h1>Guests</h1><p class="muted">Add, search and remove guests.</p></div></div>
+      <form class="panel row wrap" id="guestForm" novalidate>
+        <label>Name<input name="name"></label>
+        <label>Email<input name="email" type="email"></label>
+        <label>Event<select name="event" class="evsel"></select></label>
+        <button class="btn" type="submit">Add guest</button>
+        <span class="err" id="gErr"></span>
+      </form>
+      <div class="row"><select id="gFilter" class="evsel all"></select><input id="gSearch" placeholder="Search guests"></div>
+      <div class="panel tbl" id="gTable"></div>
+    </section>
+
+    <section id="v-calendar" class="view">
+      <div class="head"><div><h1 id="calTitle">Calendar</h1></div><div class="row"><button class="btn ghost" data-act="prevM">Previous</button><button class="btn ghost" data-act="today">Today</button><button class="btn ghost" data-act="nextM">Next</button></div></div>
+      <div class="cal" id="cal"></div>
+      <div class="panel"><h2 id="dayTitle">Pick a day</h2><div id="dayList"></div></div>
+    </section>
+
+    <section id="v-checkin" class="view">
+      <div class="head"><div><h1>Check-in</h1><p class="muted">Show a guest's QR code, then enter the code below to check them in.</p></div><select id="cEvent" class="evsel"></select></div>
+      <form class="panel row" id="codeForm"><input id="codeIn" placeholder="Guest code, e.g. A1B2C3" autocomplete="off"><button class="btn" type="submit">Check in</button></form>
+      <div class="note">Camera scanning needs a scanner library and HTTPS — not built in. A USB or phone barcode scanner that types into the field above works as-is.</div>
+      <div class="panel tbl" id="cTable"></div>
+    </section>
+
+    <section id="v-reminders" class="view">
+      <div class="head"><div><h1>Reminders</h1><p class="muted">Prepare messages. Nothing is sent from this site.</p></div><select id="rEvent" class="evsel"></select></div>
+      <div class="panel tbl" id="rTable"></div>
+    </section>
+
+    <section id="v-reports" class="view">
+      <div class="head"><div><h1>Reports</h1><p class="muted">Attendance statistics and CSV export.</p></div><div class="row"><select id="repEvent" class="evsel all"></select><button class="btn" data-act="csv">Export CSV</button></div></div>
+      <div class="panel tbl" id="repTable"></div>
+    </section>
+  </main>
+</div>
+
+<dialog id="qrd"><h2 id="qrName"></h2><div id="qrBox"></div><p class="muted" id="qrCode"></p><button class="btn" onclick="this.closest('dialog').close()">Close</button></dialog>
+<div id="toast" role="status"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
