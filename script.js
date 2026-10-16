@@ -1,209 +1,164 @@
-/* RSVP99 — vanilla JS. Sections: 1 data, 2 helpers, 3 views, 4 forms, 5 actions, 6 router. */
-(() => {
-/* ---------- 1. DATA (saved in localStorage) ---------- */
-const load = (k, d) => { try { return JSON.parse(localStorage.getItem(k)) ?? d; } catch { return d; } };
-const iso = d => d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
-const plus = n => { const d = new Date(); d.setDate(d.getDate() + n); return iso(d); };
-let events = load('rsvp99.events', null), guests = load('rsvp99.guests', []);
-let theme = load('rsvp99.theme', matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
-if (!events) { // demo data on first visit
-  events = [
-    { id: 'e1', name: 'Fern & Co. Launch Party', desc: 'An evening of small plates, good music and first looks at the spring collection.', date: plus(6), time: '19:00', location: 'The Glasshouse, Dubai' },
-    { id: 'e2', name: 'Team Offsite Breakfast', desc: 'Casual breakfast before the quarterly planning day.', date: plus(14), time: '09:00', location: 'Sharjah Art Cafe' },
-    { id: 'e3', name: 'Garden Birthday Brunch', desc: 'Bring a friend, bring an appetite.', date: plus(25), time: '11:30', location: 'Al Noor Island' }];
-  const n = [['Maya Haddad', 'yes'], ['Omar Saleh', 'yes'], ['Lina Farouk', 'no'], ['Zain Ali', 'pending'], ['Sara Khan', 'yes'], ['Yusuf Amin', 'pending']];
-  guests = n.map((g, i) => ({ id: 'g' + i, eventId: i < 4 ? 'e1' : 'e2', name: g[0], email: g[0].split(' ')[0].toLowerCase() + '@example.com', status: g[1], checkedIn: false, code: 'DEMO' + (10 + i), at: Date.now() - i * 3600e3 }));
-}
-const save = () => { try { localStorage.setItem('rsvp99.events', JSON.stringify(events)); localStorage.setItem('rsvp99.guests', JSON.stringify(guests)); localStorage.setItem('rsvp99.theme', JSON.stringify(theme)); } catch { toast('Storage is full. Try a smaller cover image.'); } };
+const $=(s,e=document)=>e.querySelector(s),$$=(s,e=document)=>[...e.querySelectorAll(s)];
+const KEY='rsvp99';
+const S=Object.assign({events:[],theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',tab:'events'},JSON.parse(localStorage.getItem(KEY)||'{}'));
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage is full. Try a smaller cover image.')}};
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Math.random().toString(36).slice(2,9);
+const fmt=(d,t)=>new Date(d+'T'+(t||'00:00')).toLocaleString([],{weekday:'short',month:'short',day:'numeric',...(t?{hour:'numeric',minute:'2-digit'}:{})});
+const cnt=e=>({go:e.guests.filter(g=>g.s==='going').length,no:e.guests.filter(g=>g.s==='declined').length,p:e.guests.filter(g=>g.s==='pending').length,n:e.guests.length});
+const byDate=()=>[...S.events].sort((a,b)=>(a.date+(a.time||'')).localeCompare(b.date+(b.time||'')));
+const find=id=>S.events.find(e=>e.id===id);
+const coverCss=e=>e.cover?`style="background-image:url('${e.cover}')"`:'';
+let tt;function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(tt);tt=setTimeout(()=>t.classList.remove('show'),2600)}
+const head=(h,p)=>`<div class="head"><div><h1>${h}</h1><p>${p}</p></div></div>`;
+const stagger=v=>$$(':scope>*',v).forEach((el,i)=>el.style.setProperty('--i',i));
+const meter=c=>`<div class="meter"><i style="width:${c.n?c.go/c.n*100:0}%"></i><i style="width:${c.n?c.no/c.n*100:0}%"></i></div>`;
 
-/* ---------- 2. HELPERS ---------- */
-const $ = (s, r = document) => r.querySelector(s), $$ = (s, r = document) => [...r.querySelectorAll(s)];
-const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
-const code = () => Math.random().toString(36).slice(2, 8).toUpperCase();
-const fmt = (d, t) => new Date(d + 'T00:00').toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric', year: 'numeric' }) + (t ? ' at ' + t : '');
-const evOf = id => events.find(e => e.id === id);
-const gOf = id => guests.filter(g => g.eventId === id);
-const upcoming = () => events.filter(e => e.date >= iso(new Date())).sort((a, b) => a.date.localeCompare(b.date));
-const cover = e => `<div class="cover" ${e.image ? `style="background-image:url('${e.image}')"` : ''}></div>`;
-const count = list => ({ yes: list.filter(g => g.status === 'yes').length, no: list.filter(g => g.status === 'no').length, pending: list.filter(g => g.status === 'pending').length, in: list.filter(g => g.checkedIn).length, all: list.length });
-const badge = s => `<span class="pill ${s}">${{ yes: 'Going', no: 'Declined', pending: 'Pending' }[s]}</span>`;
-let tt; const toast = m => { const t = $('#toast'); t.textContent = m; t.classList.add('on'); clearTimeout(tt); tt = setTimeout(() => t.classList.remove('on'), 2600); };
-const shareUrl = id => location.href.split('#')[0] + '#event/' + id;
-const empty = m => `<div class="empty">${m}</div>`;
-function fillSelects() { // fills every event dropdown, keeping the current choice
-  $$('.evsel').forEach(s => {
-    const cur = s.value, all = s.classList.contains('all');
-    s.innerHTML = (all ? '<option value="">All events</option>' : '') + events.map(e => `<option value="${e.id}">${esc(e.name)}</option>`).join('');
-    if ([...s.options].some(o => o.value === cur)) s.value = cur;
+/* ---------- views ---------- */
+const R={
+events(){
+  const ev=byDate(),today=new Date().toISOString().slice(0,10);
+  const up=ev.filter(e=>e.date>=today),past=ev.filter(e=>e.date<today).reverse();
+  const card=e=>{const c=cnt(e);return `<button class="card glass" data-act="open" data-id="${e.id}"><div class="cover" ${coverCss(e)}><span>${fmt(e.date,e.time)}</span></div><div class="body"><h3>${esc(e.name)}</h3><small>${esc(e.loc||'Location to be announced')}</small>${meter(c)}<small>${c.go} going, ${c.p} waiting, ${c.no} declined</small></div></button>`};
+  $('#v-events').innerHTML=head('Your events',up.length?`${up.length} coming up`:'Nothing planned yet')+
+   `<div class="grid">${up.map(card).join('')||`<div class="empty glass"><h3>No events yet</h3><p>Create one, add your guests and share the link.</p><button class="cta" data-act="new">Create an event</button></div>`}</div>`+
+   (past.length?`<div class="head"><div><h2>Past</h2></div></div><div class="grid">${past.map(card).join('')}</div>`:'');
+},
+calendar(){
+  const m=S.cal?new Date(S.cal):new Date();m.setDate(1);S.cal=m.toISOString();
+  const y=m.getFullYear(),mo=m.getMonth(),first=m.getDay(),days=new Date(y,mo+1,0).getDate(),now=new Date();
+  let cells=['S','M','T','W','T','F','S'].map(d=>`<div class="dow">${d}</div>`).join('')+'<div class="day void"></div>'.repeat(first);
+  for(let d=1;d<=days;d++){
+    const k=`${y}-${String(mo+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`,es=S.events.filter(e=>e.date===k);
+    const t=now.getFullYear()===y&&now.getMonth()===mo&&now.getDate()===d;
+    cells+=`<button class="day ${es.length?'has':''} ${t?'today':''}" ${es.length?`data-act="open" data-id="${es[0].id}"`:`data-act="newOn" data-date="${k}"`}>${d}${es.length>1?`<em>${es.length} events</em>`:''}</button>`;
+  }
+  $('#v-calendar').innerHTML=head('Calendar','Tap a day to add an event, or a highlighted day to open one.')+
+   `<div class="panel glass"><div class="cal-h"><button class="icon" data-act="cal" data-d="-1" aria-label="Previous month">‹</button><h2>${m.toLocaleString([],{month:'long',year:'numeric'})}</h2><button class="icon" data-act="cal" data-d="1" aria-label="Next month">›</button></div><div class="cal">${cells}</div></div>`;
+},
+guests(){
+  const f=S.gf||'all',all=S.events.flatMap(e=>e.guests.map(g=>({...g,ev:e})).filter(()=>f==='all'||f===e.id));
+  $('#v-guests').innerHTML=head('Guests','Everyone you have invited, across all events.')+
+   `<div class="panel glass"><div class="row actions"><select id="gf" aria-label="Filter by event"><option value="all">All events</option>${S.events.map(e=>`<option value="${e.id}" ${f===e.id?'selected':''}>${esc(e.name)}</option>`).join('')}</select><button class="ghost" data-act="csvAll">Export CSV</button></div>
+   <div class="scroll"><table><tr><th>Name</th><th>Email</th><th>Event</th><th>Status</th></tr>${all.map(g=>`<tr><td>${esc(g.name)}</td><td>${esc(g.email)}</td><td>${esc(g.ev.name)}</td><td><button class="chip ${g.s}" data-act="cycle" data-id="${g.ev.id}" data-g="${g.id}">${g.s}</button></td></tr>`).join('')||'<tr><td colspan="4">No guests yet. Open an event to add some.</td></tr>'}</table></div></div>`;
+  $('#gf').onchange=e=>{S.gf=e.target.value;save();render('guests')};
+},
+stats(){
+  const t=S.events.reduce((a,e)=>{const c=cnt(e);a.n+=c.n;a.go+=c.go;a.no+=c.no;a.p+=c.p;return a},{n:0,go:0,no:0,p:0});
+  const st=(b,l)=>`<div class="stat glass"><b>${b}</b><span>${l}</span></div>`;
+  $('#v-stats').innerHTML=head('Insights','How your invitations are landing.')+
+   `<div class="stats">${st(S.events.length,'Events')}${st(t.n,'Invited')}${st(t.go,'Going')}${st(t.no,'Declined')}${st(t.n?Math.round((t.go+t.no)/t.n*100)+'%':'0%','Replied')}</div>
+   <div class="panel glass rows">${byDate().map(e=>{const c=cnt(e);return `<div class="r"><div><span>${esc(e.name)}</span><span>${c.go}/${c.n} going</span></div>${meter(c)}</div>`}).join('')||'<p>Stats appear once you create an event.</p>'}</div>`;
+}};
+function render(v=S.tab){R[v]();const el=$('#v-'+v);el.classList.remove('in');void el.offsetWidth;stagger(el);el.classList.add('in')}
+
+/* ---------- navigation ---------- */
+function movePill(squish){const b=$('.tabs button.on'),p=$('#pill');p.style.width=b.offsetWidth+'px';p.style.transform=`translateX(${b.offsetLeft}px)`;if(squish){p.classList.remove('squish');void p.offsetWidth;p.classList.add('squish')}}
+function tab(v,anim=true){
+  S.tab=v;save();
+  $$('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
+  $$('.view').forEach(s=>s.hidden=s.id!=='v-'+v);
+  movePill(anim);render(v);scrollTo({top:0,behavior:'smooth'});
+}
+
+/* ---------- theme (circular reveal) ---------- */
+function setTheme(t){document.documentElement.dataset.theme=t;document.querySelector('meta[name=theme-color]').content=t==='dark'?'#0e1612':'#f3eee0'}
+function toggleTheme(){
+  const next=S.theme==='dark'?'light':'dark',r=$('#themeBtn').getBoundingClientRect(),x=r.left+r.width/2,y=r.top+r.height/2;
+  S.theme=next;save();
+  if(!document.startViewTransition||matchMedia('(prefers-reduced-motion:reduce)').matches){setTheme(next);return}
+  const end=Math.hypot(Math.max(x,innerWidth-x),Math.max(y,innerHeight-y));
+  document.startViewTransition(()=>setTheme(next)).ready.then(()=>
+    document.documentElement.animate({clipPath:[`circle(0 at ${x}px ${y}px)`,`circle(${end}px at ${x}px ${y}px)`]},{duration:800,easing:'cubic-bezier(.5,0,.2,1)',pseudoElement:'::view-transition-new(root)'}));
+}
+
+/* ---------- event form & detail ---------- */
+const dlg=$('#formDlg'),form=$('#evForm');let editing=null;
+function openForm(id,date){
+  editing=id?find(id):null;form.reset();$('#formTitle').textContent=editing?'Edit event':'New event';
+  if(editing)['name','date','time','loc','desc'].forEach(k=>form[k].value=editing[k]||'');else if(date)form.date.value=date;
+  $('#detail').close();dlg.showModal();
+}
+function shrink(file){return new Promise(res=>{if(!file)return res(null);const r=new FileReader();r.onload=()=>{const i=new Image();i.onload=()=>{const s=Math.min(1,900/i.width),c=document.createElement('canvas');c.width=i.width*s;c.height=i.height*s;c.getContext('2d').drawImage(i,0,0,c.width,c.height);res(c.toDataURL('image/jpeg',.8))};i.src=r.result};r.readAsDataURL(file)})}
+form.onsubmit=async ev=>{
+  const f=new FormData(form),cover=await shrink(f.get('cover').size?f.get('cover'):null);
+  const d={name:f.get('name').trim(),date:f.get('date'),time:f.get('time'),loc:f.get('loc').trim(),desc:f.get('desc').trim()};
+  if(editing){Object.assign(editing,d);if(cover)editing.cover=cover}else S.events.push({id:uid(),...d,cover,guests:[]});
+  save();toast(editing?'Event saved':'Event created');render();
+};
+function link(e){const p=btoa(unescape(encodeURIComponent(JSON.stringify({id:e.id,name:e.name,date:e.date,time:e.time,loc:e.loc,desc:e.desc}))));return location.href.split('#')[0]+'#e='+p}
+function openEvent(id){
+  const e=find(id);if(!e)return;const c=cnt(e);
+  $('#detail').innerHTML=`<div class="cover" ${coverCss(e)} style="border-radius:22px;margin-bottom:16px;${e.cover?`background-image:url('${e.cover}')`:''}"><span>${fmt(e.date,e.time)}</span></div>
+  <h2>${esc(e.name)}</h2><p>${esc(e.loc||'Location to be announced')}</p>${e.desc?`<p class="link">${esc(e.desc)}</p>`:''}
+  ${meter(c)}<small class="link">${c.go} going, ${c.p} waiting, ${c.no} declined</small>
+  <div class="row actions"><button class="cta" data-act="share" data-id="${id}">Copy share link</button><button class="ghost" data-act="remind" data-id="${id}">Remind pending</button><button class="ghost" data-act="confirm" data-id="${id}">Send confirmations</button><button class="ghost" data-act="csv" data-id="${id}">Export CSV</button></div>
+  <form class="add" data-id="${id}" id="gForm"><input name="n" placeholder="Guest name" required><input name="m" type="email" placeholder="Email"><button class="cta">Add guest</button></form>
+  <div class="scroll"><table>${e.guests.map(g=>`<tr><td>${esc(g.name)}<br><small class="link">${esc(g.email)}</small></td><td><button class="chip ${g.s}" data-act="cycle" data-id="${id}" data-g="${g.id}">${g.s}</button></td><td><button class="x" data-act="rmg" data-id="${id}" data-g="${g.id}" aria-label="Remove guest">✕</button></td></tr>`).join('')||'<tr><td>No guests yet.</td></tr>'}</table></div>
+  <div class="row end" style="margin-top:16px"><button class="ghost" data-act="edit" data-id="${id}">Edit</button><button class="ghost" data-act="del" data-id="${id}">Delete</button><button class="cta" data-act="closeDetail">Done</button></div>`;
+  const d=$('#detail');if(!d.open)d.showModal();
+  $('#gForm').onsubmit=ev=>{ev.preventDefault();const f=new FormData(ev.target);e.guests.push({id:uid(),name:f.get('n').trim(),email:f.get('m').trim(),s:'pending'});save();openEvent(id);render()};
+}
+
+/* ---------- csv & mail ---------- */
+function csv(list,name){
+  const q=v=>`"${String(v??'').replace(/"/g,'""')}"`,rows=[['Event','Name','Email','Status'],...list.flatMap(e=>e.guests.map(g=>[e.name,g.name,g.email,g.s]))];
+  const a=document.createElement('a');a.href=URL.createObjectURL(new Blob([rows.map(r=>r.map(q).join(',')).join('\n')],{type:'text/csv'}));a.download=name+'.csv';a.click();toast('Guest list exported');
+}
+function mail(e,status,subject,body){
+  const to=e.guests.filter(g=>g.s===status&&g.email).map(g=>g.email);
+  if(!to.length)return toast('No guests with an email in this group');
+  location.href=`mailto:?bcc=${encodeURIComponent(to.join(','))}&subject=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+  toast(`Opening email for ${to.length} guest${to.length>1?'s':''}`);
+}
+
+/* ---------- actions ---------- */
+document.addEventListener('click',ev=>{
+  const b=ev.target.closest('[data-act]');if(!b)return;const {act,id,g,v,d,date}=b.dataset,e=id&&find(id);
+  if(act==='tab'){ev.preventDefault();if(location.hash)location.hash='';tab(v)}
+  else if(act==='theme')toggleTheme();
+  else if(act==='new')openForm();
+  else if(act==='newOn')openForm(null,date);
+  else if(act==='closeForm')dlg.close();
+  else if(act==='closeDetail')$('#detail').close();
+  else if(act==='open')openEvent(id);
+  else if(act==='edit')openForm(id);
+  else if(act==='del'){if(confirm('Delete this event and its guest list?')){S.events=S.events.filter(x=>x.id!==id);save();$('#detail').close();render();toast('Event deleted')}}
+  else if(act==='share'){navigator.clipboard.writeText(link(e)).then(()=>toast('Share link copied'),()=>prompt('Copy this link',link(e)))}
+  else if(act==='cycle'){const x=e.guests.find(k=>k.id===g);x.s={pending:'going',going:'declined',declined:'pending'}[x.s];save();$('#detail').open?openEvent(id):render();render()}
+  else if(act==='rmg'){e.guests=e.guests.filter(k=>k.id!==g);save();openEvent(id);render()}
+  else if(act==='csv')csv([e],e.name.replace(/\W+/g,'-').toLowerCase()+'-guests');
+  else if(act==='csvAll')csv(S.events,'rsvp99-guests');
+  else if(act==='remind')mail(e,'pending',`Reminder: ${e.name}`,`Hi, a quick reminder about ${e.name} on ${fmt(e.date,e.time)}${e.loc?' at '+e.loc:''}. Please RSVP here: ${link(e)}`);
+  else if(act==='confirm')mail(e,'going',`You're confirmed: ${e.name}`,`You're confirmed for ${e.name} on ${fmt(e.date,e.time)}${e.loc?' at '+e.loc:''}. See you there.`);
+  else if(act==='cal'){const m=new Date(S.cal);m.setMonth(m.getMonth()+ +d);S.cal=m.toISOString();render('calendar')}
+});
+$$('dialog').forEach(x=>x.addEventListener('click',ev=>{if(ev.target===x)x.close()}));
+
+/* ---------- shared RSVP page ---------- */
+function route(){
+  const h=location.hash,shared=h.startsWith('#e=');
+  $('#bar').hidden=$('#tabs').hidden=shared;$('.tools').style.display=shared?'none':'';
+  $$('.view').forEach(s=>s.hidden=shared?s.id!=='v-share':s.id!=='v-'+S.tab);
+  if(!shared){tab(S.tab,false);return}
+  let p;try{p=JSON.parse(decodeURIComponent(escape(atob(h.slice(3)))))}catch{p=null}
+  const el=$('#v-share');
+  if(!p){el.innerHTML=head('Link not valid','Ask the host to send the invitation link again.');return}
+  let e=find(p.id);if(!e){e={...p,cover:null,guests:[]};S.events.push(e);save()}
+  el.innerHTML=head(esc(e.name),`${fmt(e.date,e.time)}${e.loc?' · '+esc(e.loc):''}`)+
+   `<div class="panel glass"><div class="cover" ${coverCss(e)} style="border-radius:20px;margin-bottom:16px"></div>${e.desc?`<p style="margin-bottom:14px">${esc(e.desc)}</p>`:''}
+   <form id="rForm"><label>Your name<input name="n" required></label><label>Email<input name="m" type="email"></label>
+   <div class="row end"><button type="button" class="ghost" data-r="declined">Can't make it</button><button type="button" class="cta" data-r="going">I'm going</button></div></form></div>`;
+  el.classList.remove('in');void el.offsetWidth;stagger(el);el.classList.add('in');
+  $$('[data-r]',el).forEach(btn=>btn.onclick=()=>{
+    const f=new FormData($('#rForm'));if(!f.get('n').trim())return $('#rForm').reportValidity();
+    e.guests.push({id:uid(),name:f.get('n').trim(),email:f.get('m').trim(),s:btn.dataset.r});save();
+    el.innerHTML=head(btn.dataset.r==='going'?'See you there':'Thanks for letting us know',btn.dataset.r==='going'?`You're on the list for ${esc(e.name)}.`:'Your reply has been recorded.')+`<div class="panel glass"><a class="cta" style="display:inline-block;text-decoration:none" href="#" data-act="tab" data-v="events">Open dashboard</a></div>`;
+    el.classList.remove('in');void el.offsetWidth;stagger(el);el.classList.add('in');
   });
 }
-
-/* ---------- 3. VIEWS ---------- */
-const views = {
-  dashboard() {
-    const c = count(guests), up = upcoming();
-    $('#stats').innerHTML = [[up.length, 'Upcoming events'], [c.all, 'Total guests'], [c.yes, 'Going'], [c.no, 'Declined'], [c.pending, 'Awaiting reply']]
-      .map(s => `<div class="stat"><div class="num">${s[0]}</div><small>${s[1]}</small></div>`).join('');
-    const R = 56, L = 2 * Math.PI * R; let off = 0;
-    const seg = (n, col) => { const len = c.all ? n / c.all * L : 0, s = `<circle r="${R}" cx="75" cy="75" fill="none" stroke="${col}" stroke-width="16" stroke-dasharray="${len} ${L}" stroke-dashoffset="${-off}"/>`; off += len; return s; };
-    $('#ring').innerHTML = `<div class="ring"><svg viewBox="0 0 150 150"><circle r="${R}" cx="75" cy="75" fill="none" stroke="var(--line)" stroke-width="16"/>${seg(c.yes, 'var(--green)')}${seg(c.pending, 'var(--lime)')}${seg(c.no, 'var(--bad)')}</svg>
-      <div class="legend"><div><span class="dot" style="background:var(--green)"></span>Going ${c.yes}</div><div><span class="dot" style="background:var(--lime)"></span>Pending ${c.pending}</div><div><span class="dot" style="background:var(--bad)"></span>Declined ${c.no}</div><div class="muted">${c.all ? Math.round(c.yes / c.all * 100) : 0}% response rate to yes</div></div></div>`;
-    $('#upcoming').innerHTML = up.length ? up.slice(0, 4).map(e => `<div class="item"><div><b>${esc(e.name)}</b><div class="muted">${fmt(e.date, e.time)}</div></div><a class="btn ghost sm" href="#event/${e.id}">Open</a></div>`).join('') : empty('No upcoming events. Create one to get started.');
-    const rec = [...guests].filter(g => g.status !== 'pending').sort((a, b) => b.at - a.at).slice(0, 5);
-    $('#recent').innerHTML = rec.length ? rec.map(g => `<div class="item"><span>${esc(g.name)} <span class="muted">for ${esc(evOf(g.eventId)?.name || 'deleted event')}</span></span>${badge(g.status)}</div>`).join('') : empty('No responses yet.');
-  },
-  events() {
-    const q = $('#evSearch').value.toLowerCase(), s = $('#evSort').value;
-    const list = events.filter(e => (e.name + e.location).toLowerCase().includes(q)).sort((a, b) => s === 'name' ? a.name.localeCompare(b.name) : s === 'guests' ? gOf(b.id).length - gOf(a.id).length : a.date.localeCompare(b.date));
-    $('#evGrid').innerHTML = list.length ? list.map(e => `<article class="card">${cover(e)}<div class="body"><h3>${esc(e.name)}</h3><div class="muted">${fmt(e.date, e.time)}</div><div class="muted">${esc(e.location)}</div><div><span class="pill">${gOf(e.id).length} guests</span></div></div>
-      <div class="acts"><a class="btn sm" href="#event/${e.id}">View page</a><button class="btn ghost sm" data-act="edit" data-id="${e.id}">Edit</button><button class="btn ghost sm" data-act="dup" data-id="${e.id}">Duplicate</button><button class="btn bad sm" data-act="del" data-id="${e.id}">Delete</button></div></article>`).join('') : empty('No events found.');
-  },
-  page() {
-    const e = evOf(pageId), box = $('#v-page');
-    if (!e) { box.innerHTML = `<div class="panel">${empty('This event does not exist in this browser.')}</div>`; return; }
-    const c = count(gOf(e.id));
-    box.innerHTML = `<div class="cover hero" ${e.image ? `style="background-image:url('${e.image}')"` : ''}></div><h1>${esc(e.name)}</h1>
-      <div class="meta"><span>${fmt(e.date, e.time)}</span><span>${esc(e.location)}</span><span>${c.yes} going</span></div>
-      <div class="two"><div class="panel"><h2>About this event</h2><p>${esc(e.desc || 'No description yet.').replace(/\n/g, '<br>')}</p>
-      <div class="row"><input readonly value="${esc(shareUrl(e.id))}" id="shareIn"><button class="btn ghost" data-act="copy">Copy link</button></div>
-      <p class="muted">Demo note: this link only works in this browser until a backend stores events online.</p></div>
-      <form class="panel form" id="rsvpForm" data-id="${e.id}" novalidate><h2>Will you come?</h2>
-        <label>Your name<input name="name"></label><label>Email<input name="email" type="email"></label><span class="err"></span>
-        <div class="row"><button class="btn" data-s="yes">Yes, I'll be there</button><button class="btn ghost" data-s="no">Can't make it</button></div></form></div>`;
-  },
-  guests() {
-    const f = $('#gFilter').value, q = $('#gSearch').value.toLowerCase();
-    const list = guests.filter(g => (!f || g.eventId === f) && (g.name + g.email).toLowerCase().includes(q));
-    $('#gTable').innerHTML = list.length ? `<table><tr><th>Name</th><th>Email</th><th>Event</th><th>RSVP</th><th></th></tr>${list.map(g => `<tr><td>${esc(g.name)}</td><td>${esc(g.email)}</td><td>${esc(evOf(g.eventId)?.name || '—')}</td>
-      <td><select data-chg="${g.id}">${['pending', 'yes', 'no'].map(s => `<option value="${s}" ${g.status === s ? 'selected' : ''}>${{ yes: 'Going', no: 'Declined', pending: 'Pending' }[s]}</option>`).join('')}</select></td>
-      <td><button class="btn bad sm" data-act="rmg" data-id="${g.id}">Remove</button></td></tr>`).join('')}</table>` : empty('No guests match. Add one above.');
-  },
-  calendar() {
-    const y = cal.y, m = cal.m, first = new Date(y, m, 1), start = new Date(y, m, 1 - first.getDay());
-    $('#calTitle').textContent = first.toLocaleDateString(undefined, { month: 'long', year: 'numeric' });
-    let h = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => `<b>${d}</b>`).join('');
-    for (let i = 0; i < 42; i++) {
-      const d = new Date(start); d.setDate(start.getDate() + i); const k = iso(d), ev = events.filter(e => e.date === k);
-      h += `<button class="day ${d.getMonth() !== m ? 'out' : ''} ${k === iso(new Date()) ? 'today' : ''} ${k === cal.sel ? 'sel' : ''} ${ev.length ? 'has' : ''}" data-act="day" data-d="${k}">${d.getDate()}${ev.map(e => `<i>${esc(e.name)}</i>`).join('')}</button>`;
-    }
-    $('#cal').innerHTML = h;
-    const day = events.filter(e => e.date === cal.sel);
-    $('#dayTitle').textContent = cal.sel ? fmt(cal.sel) : 'Pick a day';
-    $('#dayList').innerHTML = day.length ? day.map(e => `<div class="item"><div><b>${esc(e.name)}</b><div class="muted">${e.time} · ${esc(e.location)}</div></div><a class="btn ghost sm" href="#event/${e.id}">Open</a></div>`).join('') : empty(cal.sel ? 'Nothing planned on this day.' : 'Select a date to see its events.');
-  },
-  checkin() {
-    const id = $('#cEvent').value, list = gOf(id), c = count(list);
-    $('#cTable').innerHTML = list.length ? `<p><b>${c.in}</b> of ${c.all} checked in</p><table><tr><th>Guest</th><th>Code</th><th>RSVP</th><th></th></tr>${list.map(g => `<tr><td>${esc(g.name)}</td><td>${g.code}</td><td>${badge(g.status)}</td>
-      <td><button class="btn ghost sm" data-act="qr" data-id="${g.id}">QR code</button> <button class="btn ${g.checkedIn ? 'ghost' : ''} sm" data-act="ci" data-id="${g.id}">${g.checkedIn ? 'Undo check-in' : 'Check in'}</button></td></tr>`).join('')}</table>` : empty('No guests for this event yet.');
-  },
-  reminders() {
-    const e = evOf($('#rEvent').value), list = e ? gOf(e.id) : [];
-    const mail = (g, kind) => {
-      const sub = kind === 'c' ? `You're on the list: ${e.name}` : `Reminder: ${e.name} is coming up`;
-      const body = `Hi ${g.name},\n\n${kind === 'c' ? 'Thanks for your RSVP!' : 'Just a reminder about our event.'}\n\n${e.name}\n${fmt(e.date, e.time)}\n${e.location}\n\nEvent page: ${shareUrl(e.id)}\nYour check-in code: ${g.code}\n`;
-      return `mailto:${encodeURIComponent(g.email)}?subject=${encodeURIComponent(sub)}&body=${encodeURIComponent(body)}`;
-    };
-    $('#rTable').innerHTML = list.length ? `<table><tr><th>Guest</th><th>RSVP</th><th>Prepare message</th></tr>${list.map(g => `<tr><td>${esc(g.name)}</td><td>${badge(g.status)}</td><td><a class="btn ghost sm" href="${mail(g, 'c')}">RSVP confirmation</a> <a class="btn ghost sm" href="${mail(g, 'r')}">Event reminder</a></td></tr>`).join('')}</table><p class="muted">These open your own email app with the message filled in. Real bulk sending needs an email service and a backend.</p>` : empty('No guests for this event yet.');
-  },
-  reports() {
-    const f = $('#repEvent').value, list = events.filter(e => !f || e.id === f);
-    $('#repTable').innerHTML = list.length ? `<table><tr><th>Event</th><th>Invited</th><th>Going</th><th>Declined</th><th>Pending</th><th>Checked in</th><th>Attendance</th></tr>${list.map(e => { const c = count(gOf(e.id)); return `<tr><td>${esc(e.name)}</td><td>${c.all}</td><td>${c.yes}</td><td>${c.no}</td><td>${c.pending}</td><td>${c.in}</td><td>${c.yes ? Math.round(c.in / c.yes * 100) : 0}%</td></tr>`; }).join('')}</table>` : empty('No events yet.');
-  }
-};
-
-/* ---------- 4. FORMS ---------- */
-let editId = null, img = '';
-const form = $('#evForm');
-const setErr = (name, msg) => { const el = form.elements[name].parentElement.querySelector('.err'); el.textContent = msg || ''; return !!msg; };
-form.addEventListener('submit', ev => {
-  ev.preventDefault(); const f = form.elements; let bad = false;
-  bad |= setErr('name', f.name.value.trim().length < 3 ? 'Enter an event name (at least 3 characters).' : '');
-  bad |= setErr('date', !f.date.value ? 'Choose a date.' : '');
-  bad |= setErr('time', !f.time.value ? 'Choose a start time.' : '');
-  bad |= setErr('location', !f.location.value.trim() ? 'Enter where it takes place.' : '');
-  if (bad) return;
-  const data = { name: f.name.value.trim(), desc: f.desc.value.trim(), date: f.date.value, time: f.time.value, location: f.location.value.trim(), image: img };
-  if (editId) Object.assign(evOf(editId), data); else events.push({ id: 'e' + code(), ...data });
-  const id = editId || events[events.length - 1].id;
-  save(); toast(editId ? 'Event updated' : 'Event created'); resetForm(); location.hash = '#event/' + id;
-});
-form.elements.image.addEventListener('change', e => {
-  const file = e.target.files[0]; if (!file) return;
-  if (!file.type.startsWith('image/')) return setErr('image', 'Please choose an image file.');
-  setErr('image', ''); const r = new FileReader();
-  r.onload = () => { const im = new Image(); im.onload = () => { // shrink so localStorage doesn't fill up
-    const k = Math.min(1, 900 / im.width), c = document.createElement('canvas'); c.width = im.width * k; c.height = im.height * k;
-    c.getContext('2d').drawImage(im, 0, 0, c.width, c.height); img = c.toDataURL('image/jpeg', .75); $('#preview').src = img; $('#preview').hidden = false; }; im.src = r.result; };
-  r.readAsDataURL(file);
-});
-function resetForm() { form.reset(); editId = null; img = ''; $('#preview').hidden = true; $('#formTitle').textContent = 'Create event'; $$('.err', form).forEach(x => x.textContent = ''); }
-$('#cancelEdit').onclick = resetForm;
-
-$('#guestForm').addEventListener('submit', e => {
-  e.preventDefault(); const f = e.target.elements, err = $('#gErr');
-  if (!events.length) return err.textContent = 'Create an event first.';
-  if (f.name.value.trim().length < 2) return err.textContent = 'Enter the guest\'s name.';
-  if (!/^\S+@\S+\.\S+$/.test(f.email.value)) return err.textContent = 'Enter a valid email address.';
-  if (guests.some(g => g.eventId === f.event.value && g.email.toLowerCase() === f.email.value.toLowerCase())) return err.textContent = 'This guest is already on that event.';
-  err.textContent = ''; guests.push({ id: 'g' + code(), eventId: f.event.value, name: f.name.value.trim(), email: f.email.value.trim(), status: 'pending', checkedIn: false, code: code(), at: Date.now() });
-  save(); e.target.reset(); toast('Guest added'); render();
-});
-
-$('#codeForm').addEventListener('submit', e => {
-  e.preventDefault(); const v = $('#codeIn').value.trim().toUpperCase(), g = guests.find(x => x.code === v && x.eventId === $('#cEvent').value);
-  if (!g) return toast('No guest with that code for this event.');
-  g.checkedIn = true; save(); $('#codeIn').value = ''; toast(g.name + ' checked in'); render();
-});
-
-document.addEventListener('submit', e => { // public RSVP form
-  if (e.target.id !== 'rsvpForm') return; e.preventDefault();
-  const f = e.target, st = e.submitter?.dataset.s, name = f.name.value.trim(), email = f.email.value.trim(), err = $('.err', f);
-  if (name.length < 2) return err.textContent = 'Please enter your name.';
-  if (!/^\S+@\S+\.\S+$/.test(email)) return err.textContent = 'Please enter a valid email.';
-  let g = guests.find(x => x.eventId === f.dataset.id && x.email.toLowerCase() === email.toLowerCase());
-  if (g) Object.assign(g, { name, status: st, at: Date.now() }); else guests.push({ id: 'g' + code(), eventId: f.dataset.id, name, email, status: st, checkedIn: false, code: code(), at: Date.now() });
-  save(); f.innerHTML = `<h2>${st === 'yes' ? 'See you there, ' + esc(name) + '!' : 'Thanks for letting us know.'}</h2><p class="muted">Your response is saved. ${st === 'yes' ? 'The host can now prepare a confirmation for ' + esc(email) + '.' : ''}</p>`;
-});
-
-/* ---------- 5. ACTIONS ---------- */
-const csv = rows => rows.map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\r\n');
-document.addEventListener('click', e => {
-  const b = e.target.closest('[data-act]'); if (!b) return; const a = b.dataset.act, id = b.dataset.id;
-  if (a === 'del' && confirm('Delete this event and its guests?')) { events = events.filter(x => x.id !== id); guests = guests.filter(g => g.eventId !== id); save(); toast('Event deleted'); render(); }
-  if (a === 'dup') { const o = evOf(id); events.push({ ...o, id: 'e' + code(), name: o.name + ' (copy)' }); save(); toast('Event duplicated'); render(); }
-  if (a === 'edit') { const o = evOf(id), f = form.elements; editId = id; img = o.image || ''; f.name.value = o.name; f.desc.value = o.desc; f.date.value = o.date; f.time.value = o.time; f.location.value = o.location;
-    $('#preview').src = img; $('#preview').hidden = !img; $('#formTitle').textContent = 'Edit event'; location.hash = '#create'; }
-  if (a === 'rmg' && confirm('Remove this guest?')) { guests = guests.filter(g => g.id !== id); save(); toast('Guest removed'); render(); }
-  if (a === 'ci') { const g = guests.find(x => x.id === id); g.checkedIn = !g.checkedIn; save(); render(); }
-  if (a === 'qr') { const g = guests.find(x => x.id === id); $('#qrName').textContent = g.name; $('#qrCode').textContent = 'Code: ' + g.code; const box = $('#qrBox'); box.innerHTML = '';
-    if (window.QRCode) new QRCode(box, { text: g.code, width: 200, height: 200 }); else box.textContent = 'QR library could not load (offline?). Use the code below.'; $('#qrd').showModal(); }
-  if (a === 'copy') { const t = $('#shareIn'); t.select(); (navigator.clipboard?.writeText(t.value) || Promise.reject()).then(() => toast('Link copied'), () => { document.execCommand('copy'); toast('Link copied'); }); }
-  if (a === 'prevM') { cal.m--; if (cal.m < 0) { cal.m = 11; cal.y--; } render(); }
-  if (a === 'nextM') { cal.m++; if (cal.m > 11) { cal.m = 0; cal.y++; } render(); }
-  if (a === 'today') { const d = new Date(); cal = { y: d.getFullYear(), m: d.getMonth(), sel: iso(d) }; render(); }
-  if (a === 'day') { cal.sel = b.dataset.d; render(); }
-  if (a === 'csv') { const f = $('#repEvent').value, rows = [['Event', 'Name', 'Email', 'RSVP', 'Checked in', 'Code']];
-    guests.filter(g => !f || g.eventId === f).forEach(g => rows.push([evOf(g.eventId)?.name || '', g.name, g.email, g.status, g.checkedIn ? 'Yes' : 'No', g.code]));
-    const url = URL.createObjectURL(new Blob([csv(rows)], { type: 'text/csv' })), l = document.createElement('a'); l.href = url; l.download = 'rsvp99-guests.csv'; l.click(); URL.revokeObjectURL(url); toast('CSV downloaded'); }
-});
-document.addEventListener('change', e => { const id = e.target.dataset.chg; if (id) { const g = guests.find(x => x.id === id); g.status = e.target.value; g.at = Date.now(); save(); toast('RSVP updated'); } });
-['evSearch', 'evSort', 'gFilter', 'gSearch', 'cEvent', 'rEvent', 'repEvent'].forEach(i => $('#' + i).addEventListener('input', render));
-
-/* ---------- 6. ROUTER & THEME ---------- */
-let cal = (() => { const d = new Date(); return { y: d.getFullYear(), m: d.getMonth(), sel: iso(d) }; })(), view = 'dashboard', pageId = '';
-function render() { fillSelects(); views[view](); }
-function route() {
-  const [v, id] = (location.hash.slice(1) || 'dashboard').split('/');
-  view = v === 'event' ? 'page' : (views[v] || v === 'create') ? v : 'dashboard'; pageId = id;
-  $$('.view').forEach(s => s.classList.toggle('on', s.id === 'v-' + view));
-  $$('#nav a').forEach(a => a.classList.toggle('on', a.hash === '#' + view || (view === 'page' && a.hash === '#events')));
-  $('#sidebar').classList.remove('open'); scrollTo(0, 0);
-  if (view === 'create') { if (!editId) resetForm(); } else { editId = null; }
-  if (view !== 'create') render(); else fillSelects();
-}
-const applyTheme = () => { document.documentElement.dataset.theme = theme; $('#theme').textContent = theme === 'dark' ? 'Switch to light' : 'Switch to dark'; };
-$('#theme').onclick = () => { theme = theme === 'dark' ? 'light' : 'dark'; applyTheme(); save(); };
-$('#menu').onclick = () => $('#sidebar').classList.toggle('open');
-addEventListener('hashchange', route);
-applyTheme(); route();
-})();
+setTheme(S.theme);
+addEventListener('hashchange',route);
+addEventListener('resize',()=>movePill(false));
+document.fonts?.ready.then(()=>movePill(false));
+route();movePill(false);
