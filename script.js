@@ -1,6 +1,6 @@
 const $=(s,e=document)=>e.querySelector(s),$$=(s,e=document)=>[...e.querySelectorAll(s)];
 const KEY='rsvp99';
-const S=Object.assign({events:[],theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',tab:'events'},JSON.parse(localStorage.getItem(KEY)||'{}'));
+const S=Object.assign({events:[],theme:matchMedia('(prefers-color-scheme: dark)').matches?'dark':'light',tab:'home'},JSON.parse(localStorage.getItem(KEY)||'{}'));
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage is full. Try a smaller cover image.')}};
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const uid=()=>Math.random().toString(36).slice(2,9);
@@ -46,19 +46,42 @@ guests(){
 stats(){
   const t=S.events.reduce((a,e)=>{const c=cnt(e);a.n+=c.n;a.go+=c.go;a.no+=c.no;a.p+=c.p;return a},{n:0,go:0,no:0,p:0});
   const st=(b,l)=>`<div class="stat glass"><b>${b}</b><span>${l}</span></div>`;
-  $('#v-stats').innerHTML=head('Insights','How your invitations are landing.')+
+  $('#v-stats').innerHTML=head('Insights','Who has replied, and who has not.')+
    `<div class="stats">${st(S.events.length,'Events')}${st(t.n,'Invited')}${st(t.go,'Going')}${st(t.no,'Declined')}${st(t.n?Math.round((t.go+t.no)/t.n*100)+'%':'0%','Replied')}</div>
    <div class="panel glass rows">${byDate().map(e=>{const c=cnt(e);return `<div class="r"><div><span>${esc(e.name)}</span><span>${c.go}/${c.n} going</span></div>${meter(c)}</div>`}).join('')||'<p>Stats appear once you create an event.</p>'}</div>`;
 }};
 function render(v=S.tab){R[v]();const el=$('#v-'+v);el.classList.remove('in');void el.offsetWidth;stagger(el);el.classList.add('in')}
 
 /* ---------- navigation ---------- */
-function movePill(squish){const b=$('.tabs button.on'),p=$('#pill');p.style.width=b.offsetWidth+'px';p.style.transform=`translateX(${b.offsetLeft}px)`;if(squish){p.classList.remove('squish');void p.offsetWidth;p.classList.add('squish')}}
+R.home=()=>{};
+let pt={x:innerWidth/2,y:40};
+addEventListener('pointerdown',e=>{pt={x:e.clientX,y:e.clientY}},true);
+const menu=$('#menu');
+function menuToggle(f){
+  const o=f??!menu.classList.contains('open'),b=$('#menuBtn');
+  menu.classList.toggle('open',o);b.classList.toggle('open',o);b.setAttribute('aria-expanded',o);
+  $('#menuLbl').textContent=o?'Close':'Menu';document.body.classList.toggle('noscroll',o);
+}
 function tab(v,anim=true){
-  S.tab=v;save();
-  $$('.tabs button').forEach(b=>b.classList.toggle('on',b.dataset.v===v));
-  $$('.view').forEach(s=>s.hidden=s.id!=='v-'+v);
-  movePill(anim);render(v);scrollTo({top:0,behavior:'smooth'});
+  const go=()=>{S.tab=v;save();$$('.view').forEach(s=>s.hidden=s.id!=='v-'+v);$$('.mi[data-v]').forEach(b=>b.classList.toggle('on',b.dataset.v===v));render(v);scrollTo(0,0)};
+  menuToggle(false);
+  if(!anim){go();return}
+  const i=$('#iris');i.style.setProperty('--x',pt.x+'px');i.style.setProperty('--y',pt.y+'px');
+  i.classList.remove('go');void i.offsetWidth;i.classList.add('go');setTimeout(go,420);
+}
+/* lighting: a lamp that follows the pointer, a shine on glass, eyes that follow too */
+addEventListener('pointermove',e=>{
+  const st=document.documentElement.style;st.setProperty('--lx',e.clientX+'px');st.setProperty('--ly',e.clientY+'px');
+  const g=e.target.closest?.('.glass');
+  if(g){const r=g.getBoundingClientRect();g.style.setProperty('--mx',e.clientX-r.left+'px');g.style.setProperty('--my',e.clientY-r.top+'px')}
+  $$('.pupil').forEach(p=>{const r=p.parentNode.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy)||1;p.style.transform=`translate(${dx/d*4}px,${dy/d*4}px)`})
+});
+addEventListener('keydown',e=>{if(e.key==='Escape')menuToggle(false)});
+function boom(){
+  const c=['#2f6b4a','#7ccf9f','#e8c76a','#f2a65a','#ffffff'];
+  for(let i=0;i<28;i++){const p=document.createElement('i'),a=Math.random()*6.28,d=80+Math.random()*180;p.className='conf';
+    p.style.cssText=`--dx:${Math.cos(a)*d}px;--dy:${Math.sin(a)*d-90}px;--r:${Math.random()*720-360}deg;background:${c[i%5]};left:${pt.x}px;top:${pt.y}px`;
+    document.body.appendChild(p);setTimeout(()=>p.remove(),1100)}
 }
 
 /* ---------- theme (circular reveal) ---------- */
@@ -84,7 +107,7 @@ form.onsubmit=async ev=>{
   const f=new FormData(form),cover=await shrink(f.get('cover').size?f.get('cover'):null);
   const d={name:f.get('name').trim(),date:f.get('date'),time:f.get('time'),loc:f.get('loc').trim(),desc:f.get('desc').trim()};
   if(editing){Object.assign(editing,d);if(cover)editing.cover=cover}else S.events.push({id:uid(),...d,cover,guests:[]});
-  save();toast(editing?'Event saved':'Event created');render();
+  save();toast(editing?'Event saved':'Event created');boom();render();
 };
 function link(e){const p=btoa(unescape(encodeURIComponent(JSON.stringify({id:e.id,name:e.name,date:e.date,time:e.time,loc:e.loc,desc:e.desc}))));return location.href.split('#')[0]+'#e='+p}
 function openEvent(id){
@@ -117,7 +140,8 @@ document.addEventListener('click',ev=>{
   const b=ev.target.closest('[data-act]');if(!b)return;const {act,id,g,v,d,date}=b.dataset,e=id&&find(id);
   if(act==='tab'){ev.preventDefault();if(location.hash)location.hash='';tab(v)}
   else if(act==='theme')toggleTheme();
-  else if(act==='new')openForm();
+  else if(act==='menu')menuToggle();
+  else if(act==='new'){menuToggle(false);openForm()}
   else if(act==='newOn')openForm(null,date);
   else if(act==='closeForm')dlg.close();
   else if(act==='closeDetail')$('#detail').close();
@@ -138,27 +162,25 @@ $$('dialog').forEach(x=>x.addEventListener('click',ev=>{if(ev.target===x)x.close
 /* ---------- shared RSVP page ---------- */
 function route(){
   const h=location.hash,shared=h.startsWith('#e=');
-  $('#bar').hidden=$('#tabs').hidden=shared;$('.tools').style.display=shared?'none':'';
+  $('#bar').hidden=shared;
   $$('.view').forEach(s=>s.hidden=shared?s.id!=='v-share':s.id!=='v-'+S.tab);
   if(!shared){tab(S.tab,false);return}
   let p;try{p=JSON.parse(decodeURIComponent(escape(atob(h.slice(3)))))}catch{p=null}
   const el=$('#v-share');
   if(!p){el.innerHTML=head('Link not valid','Ask the host to send the invitation link again.');return}
   let e=find(p.id);if(!e){e={...p,cover:null,guests:[]};S.events.push(e);save()}
-  el.innerHTML=head(esc(e.name),`${fmt(e.date,e.time)}${e.loc?' · '+esc(e.loc):''}`)+
+  el.innerHTML=head(esc(e.name),`${fmt(e.date,e.time)}${e.loc?' at '+esc(e.loc):''}`)+
    `<div class="panel glass"><div class="cover" ${coverCss(e)} style="border-radius:20px;margin-bottom:16px"></div>${e.desc?`<p style="margin-bottom:14px">${esc(e.desc)}</p>`:''}
    <form id="rForm"><label>Your name<input name="n" required></label><label>Email<input name="m" type="email"></label>
    <div class="row end"><button type="button" class="ghost" data-r="declined">Can't make it</button><button type="button" class="cta" data-r="going">I'm going</button></div></form></div>`;
   el.classList.remove('in');void el.offsetWidth;stagger(el);el.classList.add('in');
   $$('[data-r]',el).forEach(btn=>btn.onclick=()=>{
     const f=new FormData($('#rForm'));if(!f.get('n').trim())return $('#rForm').reportValidity();
-    e.guests.push({id:uid(),name:f.get('n').trim(),email:f.get('m').trim(),s:btn.dataset.r});save();
+    e.guests.push({id:uid(),name:f.get('n').trim(),email:f.get('m').trim(),s:btn.dataset.r});save();if(btn.dataset.r==='going')boom();
     el.innerHTML=head(btn.dataset.r==='going'?'See you there':'Thanks for letting us know',btn.dataset.r==='going'?`You're on the list for ${esc(e.name)}.`:'Your reply has been recorded.')+`<div class="panel glass"><a class="cta" style="display:inline-block;text-decoration:none" href="#" data-act="tab" data-v="events">Open dashboard</a></div>`;
     el.classList.remove('in');void el.offsetWidth;stagger(el);el.classList.add('in');
   });
 }
 setTheme(S.theme);
 addEventListener('hashchange',route);
-addEventListener('resize',()=>movePill(false));
-document.fonts?.ready.then(()=>movePill(false));
-route();movePill(false);
+route();
