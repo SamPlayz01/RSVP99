@@ -385,6 +385,7 @@ var KEY='rsvp99.v1';
 var $=function(s,r){return (r||document).querySelector(s)};
 var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
 var S={events:[],theme:'light'};
+
 var cur='home', editing=null, openId=null, cal=new Date();
 cal.setDate(1);
 
@@ -459,6 +460,7 @@ function show(v,pt){
     if(R[v]) R[v]();
     menu(false);
     scrollTo(0,0);
+    env();
     if(location.hash.indexOf('#/e/')===0) history.replaceState(null,'',location.pathname+location.search);
   };
   if(pt) iris(pt.x,pt.y,go); else go();
@@ -559,7 +561,7 @@ function shareView(h){
     if(!name) return;
     var t=ev(h.id);
     if(!t){t={id:h.id,name:e.name,date:e.date,time:e.time,loc:e.loc,desc:e.desc,cover:'',guests:[]};S.events.push(t)}
-    var g=t.guests.filter(function(g){return g.name.toLowerCase()===name.toLowerCase()})[0];
+    var g=t.guests.filter(function(gx){return gx.name.toLowerCase()===name.toLowerCase()})[0];
     if(g) g.s=s; else t.guests.push({id:uid(),name:name,email:'',s:s});
     save();
     $('#rmsg').textContent=s==='yes'?'Thanks, '+name+'. You are on the list.':'Thanks, '+name+'. Your decline is noted.';
@@ -579,7 +581,7 @@ function openForm(id){
   f.reset();
   if(e){f.name.value=e.name;f.date.value=e.date;f.time.value=e.time||'';f.loc.value=e.loc||'';f.desc.value=e.desc||''}
   menu(false);
-  $('#detail').open&&$('#detail').close();
+  if($('#detail').open) $('#detail').close();
   $('#formDlg').showModal();
 }
 function shrink(file,cb){
@@ -660,7 +662,7 @@ function parseCsv(text){
     else c+=ch;
   }
   if(c||r.length){r.push(c);rows.push(r)}
-  return rows.filter(function(r){return r.join('').trim()});
+  return rows.filter(function(rw){return rw.join('').trim()});
 }
 function importCsv(id,file){
   var e=ev(id),rd=new FileReader();
@@ -698,7 +700,8 @@ document.addEventListener('click',function(x){
     if(confirm('Delete "'+e.name+'" and its guest list?')){S.events=S.events.filter(function(z){return z.id!==id});save();if($('#detail').open)$('#detail').close();refresh();toast('Event deleted')}
   }
   else if(a==='rmg'){
-    var t=ev(openId);t.guests=t.guests.filter(function(g){return g.id!==b.dataset.g});save();detail(openId);refresh();
+    var t=ev(openId);if(!t)return;
+    t.guests=t.guests.filter(function(g){return g.id!==b.dataset.g});save();detail(openId);refresh();
   }
   else if(a==='remind'&&e) mail(e,e.guests.filter(function(g){return g.s==='wait'}),'Reminder: '+e.name,'Hi,\n\nA quick reminder to reply to '+e.name+(e.date?' on '+when(e):'')+'.\nRSVP here: '+link(e)+'\n\nThanks!');
   else if(a==='confirm'&&e) mail(e,e.guests.filter(function(g){return g.s==='yes'}),'See you at '+e.name,'Hi,\n\nYou are confirmed for '+e.name+(e.date?'\nWhen: '+when(e):'')+(e.loc?'\nWhere: '+e.loc:'')+'\n\nSee you there!');
@@ -710,20 +713,25 @@ document.addEventListener('submit',function(x){
   if(x.target.id==='evForm') submitForm(x);
   else if(x.target.id==='gf'){
     x.preventDefault();
-    var f=x.target,t=ev(openId);
-    t.guests.push({id:uid(),name:f.gn.value.trim(),email:f.ge.value.trim(),s:'wait'});
+    var f=x.target,t=ev(openId);if(!t)return;
+    var name=f.gn.value.trim();
+    if(!name)return;
+    t.guests.push({id:uid(),name:name,email:f.ge.value.trim(),s:'wait'});
     save();detail(openId);refresh();
   }
 });
 document.addEventListener('change',function(x){
   var t=x.target;
-  if(t.matches('select[data-g]')){
-    var e=ev(openId),g=e.guests.filter(function(g){return g.id===t.dataset.g})[0];
+  if(t.matches&&t.matches('select[data-g]')){
+    if(!openId)return;
+    var e=ev(openId);if(!e)return;
+    var g=e.guests.filter(function(gx){return gx.id===t.dataset.g})[0];
+    if(!g)return;
     g.s=t.value;save();detail(openId);refresh();
   } else if(t.dataset&&t.dataset.imp&&t.files[0]) importCsv(t.dataset.imp,t.files[0]);
 });
 document.addEventListener('keydown',function(x){if(x.key==='Escape') menu(false)});
-$('#detail').addEventListener('close',function(){openId=null});
+ $('#detail').addEventListener('close',function(){openId=null});
 addEventListener('hashchange',route);
 
 /* ---------- envelope: scroll drives --p (flap) and --q (letter) ---------- */
@@ -732,7 +740,7 @@ var still=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function clamp(n){return n<0?0:n>1?1:n}
 function env(){
   tick=false;
-  var p=still?1:clamp(scrollY/(innerHeight*.35));
+  var p=still?1:clamp(window.scrollY/(window.innerHeight*.35));
   host.style.setProperty('--p',p.toFixed(3));
   host.style.setProperty('--q',clamp((p-.45)/.55).toFixed(3));
 }
@@ -744,7 +752,8 @@ addEventListener('pointermove',function(x){
   $$('.eye').forEach(function(g){
     var r=g.getBoundingClientRect();if(!r.width) return;
     var dx=x.clientX-(r.left+r.width/2),dy=x.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy)||1,k=Math.min(4,d/40);
-    g.querySelector('.pupil').style.transform='translate('+(dx/d*k).toFixed(2)+'px,'+(dy/d*k).toFixed(2)+'px)';
+    var pupil=g.querySelector('.pupil');
+    if(pupil)pupil.style.transform='translate('+(dx/d*k).toFixed(2)+'px,'+(dy/d*k).toFixed(2)+'px)';
   });
 },{passive:true});
 
