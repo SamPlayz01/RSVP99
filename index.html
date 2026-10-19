@@ -6,13 +6,271 @@
 <title>RSVP99 | Invites that get answered</title>
 <meta name="description" content="Plan an event, share one link and see who is coming.">
 <meta name="theme-color" content="#f3eee0">
-<link rel="stylesheet" href="style.css">
+<style>
+/* ---------- tokens ---------- */
+:root{
+  --page:#f3eee0; --surface:#fbf8ef; --line:rgba(28,42,33,.14);
+  --ink:#1c2a21; --mute:#5d6b61;
+  --g:#4e8a67; --g-deep:#3b6f50; --g-soft:#6aa585;
+  --butter:#f4e3a6; --sage:#d3e4d2; --warn:#c2603a; --ok:#2f7a4f;
+  --paper:#fffdf6;
+  --serif:Georgia,"Iowan Old Style","Palatino Linotype",serif;
+  --sans:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+[data-theme="dark"]{
+  --page:#141915; --surface:#1d231f; --line:rgba(255,255,255,.14);
+  --ink:#eef2ec; --mute:#9aa89f;
+  --g:#5a9b76; --g-deep:#427a5a; --g-soft:#79b494;
+  --butter:#4a4224; --sage:#27382b; --warn:#e08a63; --ok:#7fcf9f;
+}
+*{box-sizing:border-box;margin:0}
+[hidden]{display:none!important}
+html{scroll-behavior:smooth}
+body{
+  font:16px/1.55 var(--sans);color:var(--ink);background:var(--page);
+  min-height:100vh;
+  padding-top:calc(64px + env(safe-area-inset-top,0px));
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+h1,h2,h3{font-family:var(--serif);font-weight:700;line-height:1.1;letter-spacing:-.01em}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer;border:0;background:none}
+:focus-visible{outline:3px solid var(--g);outline-offset:2px}
+a{color:inherit}
+
+/* ---------- header ---------- */
+.bar{
+  position:fixed;inset:0 0 auto 0;z-index:30;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:calc(10px + env(safe-area-inset-top,0px)) 20px 10px;
+  background:var(--page);border-bottom:1px solid var(--line);
+}
+.brand{font:700 24px var(--serif);text-decoration:none}
+.brand b{color:var(--g)}
+.tools{display:flex;gap:10px;align-items:center}
+.icon{width:42px;height:42px;border-radius:50%;border:1px solid var(--line);display:grid;place-items:center;background:var(--surface)}
+.icon svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;grid-area:1/1}
+.icon .moon{display:none}
+[data-theme="dark"] .icon .sun{display:none}
+[data-theme="dark"] .icon .moon{display:block}
+.mbtn{display:flex;align-items:center;gap:10px;height:42px;padding:0 16px;border-radius:21px;background:var(--ink);color:var(--page);font-weight:600}
+.burger{width:16px;height:10px;position:relative;display:block}
+.burger i{position:absolute;left:0;width:100%;height:2px;background:currentColor;border-radius:2px;transition:transform .3s,top .3s}
+.burger i:first-child{top:0}.burger i:last-child{top:8px}
+.mbtn[aria-expanded="true"] .burger i:first-child{top:4px;transform:rotate(45deg)}
+.mbtn[aria-expanded="true"] .burger i:last-child{top:4px;transform:rotate(-45deg)}
+
+/* ---------- menu ---------- */
+#menu{
+  position:fixed;inset:0;z-index:20;background:var(--page);
+  padding:calc(90px + env(safe-area-inset-top,0px)) 20px 30px;overflow:auto;
+  visibility:hidden;opacity:0;transform:translateY(-12px);
+  transition:opacity .25s,transform .25s,visibility 0s .25s;
+}
+#menu.open{visibility:visible;opacity:1;transform:none;transition:opacity .25s,transform .25s}
+.mgrid{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
+.mi{
+  text-align:left;padding:18px;border-radius:18px;background:var(--surface);border:1px solid var(--line);
+  display:flex;flex-direction:column;gap:2px;
+  opacity:0;transform:translateY(10px);
+}
+#menu.open .mi{opacity:1;transform:none;transition:opacity .35s,transform .35s;transition-delay:calc(var(--i) * 40ms)}
+.mi b{font:700 20px var(--serif)}
+.mi span{color:var(--mute);font-size:14px}
+.mi.on{border-color:var(--g);box-shadow:inset 0 0 0 1px var(--g)}
+.mi.w{background:var(--g);border-color:var(--g);color:#fff}
+.mi.w span{color:rgba(255,255,255,.8)}
+
+/* ---------- layout ---------- */
+main{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
+.view>.head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:22px;flex-wrap:wrap}
+.view>.head h2{font-size:clamp(28px,5vw,40px)}
+.sec{font-size:clamp(24px,4vw,32px);margin:56px 0 18px}
+.foot{margin-top:48px;color:var(--mute);font-size:14px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+.row.end{justify-content:flex-end}
+
+.cta,.ghost{padding:10px 20px;border-radius:999px;font-weight:600;border:1px solid transparent;transition:transform .15s,background .15s}
+.cta{background:var(--g);color:#fff}
+.cta:hover{background:var(--g-deep)}
+.ghost{border-color:var(--line);background:var(--surface)}
+.ghost:hover{border-color:var(--g)}
+.big{padding:14px 26px;font-size:17px}
+.cta.sm,.ghost.sm{padding:6px 14px;font-size:14px}
+.danger{color:var(--warn)}
+
+/* ---------- hero ---------- */
+.hero{display:grid;grid-template-columns:1.05fr .95fr;gap:32px;align-items:center;min-height:62vh}
+.hero h1{font-size:clamp(40px,7vw,72px);margin-bottom:18px}
+.hero p{font-size:19px;color:var(--mute);max-width:34ch;margin-bottom:26px}
+.stage{position:relative;min-height:340px;display:grid;place-items:center}
+.chipcard{
+  position:absolute;z-index:3;padding:9px 16px;border-radius:999px;font-size:14px;font-weight:600;
+  background:var(--surface);border:1px solid var(--line);display:flex;align-items:center;gap:8px;
+}
+.chipcard.a{top:6%;left:2%}
+.chipcard.b{bottom:8%;right:2%}
+.dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}
+
+/* ---------- 3D envelope ---------- */
+.env3d{position:relative;width:300px;height:200px;max-width:100%;perspective:1100px;--p:0;--q:0;transform:translateY(calc(var(--p) * 70px))}
+.envelope{
+  position:relative;width:100%;height:100%;transform-style:preserve-3d;
+  transform:rotateX(calc(20deg - var(--p) * 14deg)) rotateY(calc(-24deg + var(--p) * 24deg)) rotateZ(calc(-3deg + var(--p) * 3deg));
+  will-change:transform;
+}
+.envelope>*{position:absolute;left:0;top:0;width:100%;height:100%}
+.env-back{background:var(--g-deep);border-radius:8px}
+.env-letter{
+  left:7%;width:86%;top:8%;height:86%;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 22px;
+  background:var(--paper);color:#1c2a21;border-radius:6px;
+  transform:translateZ(2px) translateY(calc(var(--q) * -118px));
+}
+.env-letter b{font:700 20px/1.15 var(--serif)}
+.env-letter span{font-size:15px}
+.env-letter i{font-style:normal;font-size:13px;opacity:.7}
+.env-letter em{font-style:normal;font-size:12px;margin-top:6px;padding-top:8px;border-top:1px solid rgba(28,42,33,.18);opacity:.7}
+.env-front{background:var(--g);border-radius:8px;clip-path:polygon(0 0,50% 52%,100% 0,100% 100%,0 100%);transform:translateZ(4px)}
+.env-face{transform:translateZ(5px);pointer-events:none;overflow:visible}
+.pupil{transition:transform .12s}
+.env-flap{height:52%;transform-origin:50% 0;transform-style:preserve-3d;transform:translateZ(calc(8px - var(--p) * 14px)) rotateX(calc(var(--p) * -180deg))}
+.env-flap i{position:absolute;inset:0;display:block;clip-path:polygon(0 0,100% 0,50% 100%);-webkit-backface-visibility:hidden;backface-visibility:hidden}
+.env-flap .f{background:var(--g);filter:brightness(1.08)}
+.env-flap .b{background:var(--g-soft);transform:rotateY(180deg)}
+.env-shadow{position:absolute;left:8%;right:8%;bottom:-26px;height:18px;background:radial-gradient(closest-side,rgba(0,0,0,.28),transparent);transform:scaleX(calc(1 - var(--p) * .12));opacity:calc(.9 - var(--p) * .25)}
+
+/* ---------- tiles ---------- */
+.bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.tile{padding:22px;border-radius:20px;background:var(--tint,var(--surface));border:1px solid var(--line);text-align:left;display:block}
+.tile.t2{grid-column:span 2}
+.tile h3{font-size:22px;margin-bottom:6px}
+.tile p{color:var(--mute);font-size:15px}
+.tile .ink{color:var(--ink)}
+.steps{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.steps.four{grid-template-columns:repeat(4,1fr)}
+.step{padding:22px;border-radius:20px;background:var(--surface);border:1px solid var(--line)}
+.step b{display:grid;place-items:center;width:34px;height:34px;border-radius:50%;background:var(--g);color:#fff;margin-bottom:12px}
+.step h3{font-size:20px;margin-bottom:4px}
+.step p{color:var(--mute);font-size:15px}
+button.tile{transition:border-color .15s}
+button.tile:hover{border-color:var(--g)}
+
+/* ---------- events ---------- */
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px}
+.ecard{background:var(--surface);border:1px solid var(--line);border-radius:20px;overflow:hidden;display:flex;flex-direction:column}
+.cover{height:130px;background:linear-gradient(135deg,var(--g),var(--g-soft));background-size:cover;background-position:center}
+.ecard .body{padding:16px 18px 18px;display:flex;flex-direction:column;gap:8px;flex:1}
+.ecard h3{font-size:21px}
+.meta{color:var(--mute);font-size:14px}
+.acts{display:flex;gap:8px;flex-wrap:wrap;margin-top:auto;padding-top:6px}
+.bar2{display:flex;height:8px;border-radius:4px;overflow:hidden;background:var(--line)}
+.bar2 i{display:block;height:100%}
+.bar2 .y{background:var(--ok)}.bar2 .n{background:var(--warn)}
+.count{display:flex;gap:14px;font-size:13px;color:var(--mute)}
+.empty{padding:40px 24px;border:1px dashed var(--line);border-radius:20px;text-align:center;color:var(--mute)}
+.empty .cta{margin-top:14px}
+
+/* ---------- calendar ---------- */
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:6px}
+.cal .dn{font-size:13px;color:var(--mute);text-align:center;padding:4px 0}
+.cell{min-height:92px;padding:6px;border-radius:12px;background:var(--surface);border:1px solid var(--line);font-size:13px;overflow:hidden}
+.cell.out{opacity:.45}
+.cell.today{border-color:var(--g);box-shadow:inset 0 0 0 1px var(--g)}
+.cell>span{display:block;margin-bottom:3px;font-weight:600}
+.pill{display:block;width:100%;text-align:left;padding:2px 7px;margin-top:3px;border-radius:999px;background:var(--g);color:#fff;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.calnav{display:flex;align-items:center;gap:8px}
+.calnav b{font:700 22px var(--serif);min-width:9ch;text-align:center}
+
+/* ---------- guests + stats ---------- */
+.glist{display:flex;flex-direction:column;gap:14px}
+.gblock{padding:20px;border-radius:20px;background:var(--surface);border:1px solid var(--line)}
+.gblock header{display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:10px}
+.gblock h3{font-size:21px}
+.chips{display:flex;gap:6px;flex-wrap:wrap}
+.chip{padding:3px 11px;border-radius:999px;font-size:13px;border:1px solid var(--line)}
+.chip.yes{background:color-mix(in srgb,var(--ok) 18%,transparent)}
+.chip.no{background:color-mix(in srgb,var(--warn) 18%,transparent)}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px;margin-bottom:22px}
+.kpi{padding:18px;border-radius:18px;background:var(--surface);border:1px solid var(--line)}
+.kpi b{display:block;font:700 34px var(--serif)}
+.kpi span{color:var(--mute);font-size:14px}
+.srow{padding:16px 0;border-top:1px solid var(--line)}
+.srow:first-child{border-top:0}
+.srow .top{display:flex;justify-content:space-between;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+
+/* ---------- dialogs ---------- */
+dialog.sheet{
+  width:min(520px,calc(100% - 28px));max-height:calc(100% - 40px);margin:auto;padding:24px;
+  border-radius:24px;background:var(--surface);color:var(--ink);border:1px solid var(--line);
+}
+dialog.sheet.wide{width:min(760px,calc(100% - 28px))}
+dialog.sheet::backdrop{background:rgba(20,25,21,.5)}
+dialog.sheet[open]{animation:pop .25s ease}
+@keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}}
+.sheet h2{font-size:28px;margin-bottom:14px}
+label{display:block;font-size:14px;font-weight:600;margin-bottom:12px}
+input,select,textarea{display:block;width:100%;margin-top:5px;padding:10px 12px;border-radius:12px;border:1px solid var(--line);background:var(--page);font-weight:400}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dcover{height:150px;border-radius:16px;margin:0 0 14px;background:linear-gradient(135deg,var(--g),var(--g-soft));background-size:cover;background-position:center}
+.linkrow{display:flex;gap:8px;margin:12px 0}
+.linkrow input{margin:0}
+table{width:100%;border-collapse:collapse;margin:10px 0;font-size:15px}
+td,th{padding:7px 6px;border-top:1px solid var(--line);text-align:left}
+th{font-size:13px;color:var(--mute);border-top:0}
+td select{margin:0;padding:6px 8px}
+.addg{display:grid;grid-template-columns:1fr 1fr auto;gap:8px;align-items:end;margin-top:10px}
+.addg input{margin:0}
+.tb{display:flex;gap:8px;flex-wrap:wrap;margin:12px 0}
+.file{position:relative;overflow:hidden}
+.file input{position:absolute;inset:0;opacity:0;cursor:pointer;width:100%;height:100%;margin:0}
+
+/* ---------- share page ---------- */
+.share .invite{max-width:520px;margin:20px auto;background:var(--surface);border:1px solid var(--line);border-radius:24px;overflow:hidden}
+.share .invite .in{padding:24px}
+.share h1{font-size:clamp(30px,6vw,44px);margin-bottom:8px}
+.share .reply{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:14px}
+.share .reply button{padding:14px;border-radius:16px;font-weight:700;border:1px solid var(--line)}
+.share .reply .y{background:var(--g);color:#fff;border-color:var(--g)}
+
+/* ---------- toast + iris ---------- */
+#toast{
+  position:fixed;left:50%;bottom:calc(24px + env(safe-area-inset-bottom,0px));z-index:60;
+  transform:translate(-50%,20px);opacity:0;pointer-events:none;
+  padding:11px 20px;border-radius:999px;background:var(--ink);color:var(--page);font-size:14px;font-weight:600;
+  transition:opacity .25s,transform .25s;
+}
+#toast.on{opacity:1;transform:translate(-50%,0)}
+#iris{position:fixed;inset:0;z-index:50;background:var(--g);pointer-events:none;opacity:0;clip-path:circle(0 at var(--x,50%) var(--y,0))}
+#iris.go{animation:iris .7s ease both}
+@keyframes iris{0%{opacity:1;clip-path:circle(0 at var(--x) var(--y))}50%{opacity:1;clip-path:circle(160% at var(--x) var(--y))}100%{opacity:0;clip-path:circle(160% at var(--x) var(--y))}}
+
+/* ---------- responsive ---------- */
+@media (max-width:860px){
+  .hero{grid-template-columns:1fr;min-height:0}
+  .bento{grid-template-columns:repeat(2,1fr)}
+  .steps,.steps.four{grid-template-columns:1fr 1fr}
+}
+@media (max-width:560px){
+  .bento,.steps,.steps.four{grid-template-columns:1fr}
+  .tile.t2{grid-column:auto}
+  .two,.addg{grid-template-columns:1fr}
+  .cell{min-height:60px;font-size:11px}
+  .pill{font-size:10px;padding:1px 4px}
+  .env3d{width:260px;height:174px}
+  .env-letter{padding:0 16px}.env-letter b{font-size:17px}
+  .mbtn #menuLbl{display:none}
+  .mbtn{padding:0 13px}
+}
+@media (prefers-reduced-motion:reduce){
+  *{transition:none!important;animation:none!important}
+  .envelope{transform:rotateX(6deg)}
+}
+</style>
 </head>
 <body>
-<div class="bg" aria-hidden="true"><i></i><i></i><i></i></div>
 <div id="iris" aria-hidden="true"></div>
 
-<header class="bar glass" id="bar">
+<header class="bar" id="bar">
   <a class="brand" href="#" data-act="tab" data-v="home">RSVP<b>99</b></a>
   <div class="tools">
     <button class="icon" id="themeBtn" data-act="theme" aria-label="Switch between light and dark">
@@ -25,13 +283,13 @@
 
 <nav id="menu" aria-label="Menu">
   <div class="mgrid">
-    <button class="mi glass w on" data-act="tab" data-v="home" style="--i:0"><b>Home</b><span>What RSVP99 does</span></button>
-    <button class="mi glass" data-act="tab" data-v="events" style="--i:1"><b>Events</b><span>Create and manage</span></button>
-    <button class="mi glass" data-act="tab" data-v="calendar" style="--i:2"><b>Calendar</b><span>Month view</span></button>
-    <button class="mi glass" data-act="tab" data-v="guests" style="--i:3"><b>Guests</b><span>Lists and CSV</span></button>
-    <button class="mi glass" data-act="tab" data-v="stats" style="--i:4"><b>Insights</b><span>Replies at a glance</span></button>
-    <button class="mi glass w" data-act="new" style="--i:5"><b>New event</b><span>Start planning</span></button>
-    <button class="mi glass" data-act="theme" style="--i:6"><b>Theme</b><span>Light or dark</span></button>
+    <button class="mi w on" data-act="tab" data-v="home" style="--i:0"><b>Home</b><span>What RSVP99 does</span></button>
+    <button class="mi" data-act="tab" data-v="events" style="--i:1"><b>Events</b><span>Create and manage</span></button>
+    <button class="mi" data-act="tab" data-v="calendar" style="--i:2"><b>Calendar</b><span>Month view</span></button>
+    <button class="mi" data-act="tab" data-v="guests" style="--i:3"><b>Guests</b><span>Lists and CSV</span></button>
+    <button class="mi" data-act="tab" data-v="stats" style="--i:4"><b>Insights</b><span>Replies at a glance</span></button>
+    <button class="mi w" data-act="new" style="--i:5"><b>New event</b><span>Start planning</span></button>
+    <button class="mi" data-act="theme" style="--i:6"><b>Theme</b><span>Light or dark</span></button>
   </div>
 </nav>
 
@@ -44,46 +302,52 @@
       <div class="row"><button class="cta big" data-act="new">Create an event</button><button class="ghost big" data-act="menu">Open the menu</button></div>
     </div>
     <div class="stage" aria-hidden="true">
-      <div class="chipcard glass a"><i class="dot"></i>Nora is going</div>
-      <svg viewBox="0 0 240 200" class="mascot">
-        <ellipse cx="120" cy="190" rx="72" ry="7" fill="rgba(0,0,0,.14)"/>
-        <rect x="20" y="40" width="200" height="140" rx="34" fill="var(--g)"/>
-        <path d="M30 64L120 106L210 64" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"/>
-        <path d="M44 54c22-14 52-16 80-12" fill="none" stroke="rgba(255,255,255,.7)" stroke-width="7" stroke-linecap="round"/>
-        <g class="eye"><ellipse cx="92" cy="128" rx="14" ry="17" fill="#fff"/><circle class="pupil" cx="92" cy="130" r="7" fill="#1c2a21"/></g>
-        <g class="eye"><ellipse cx="148" cy="128" rx="14" ry="17" fill="#fff"/><circle class="pupil" cx="148" cy="130" r="7" fill="#1c2a21"/></g>
-        <path d="M106 154q14 12 28 0" fill="none" stroke="#1c2a21" stroke-width="5" stroke-linecap="round"/>
-        <circle cx="66" cy="148" r="8" fill="#f2a65a" opacity=".55"/><circle cx="174" cy="148" r="8" fill="#f2a65a" opacity=".55"/>
-      </svg>
-      <div class="chipcard glass b">18 of 24 replied</div>
+      <div class="chipcard a"><i class="dot"></i>Nora is going</div>
+      <div class="env3d" id="env3d">
+        <div class="envelope" id="env">
+          <div class="env-back"></div>
+          <div class="env-letter"><b>You're invited</b><span>Rooftop dinner</span><i>Friday, 7 pm</i><em>Reply yes or no</em></div>
+          <div class="env-front"></div>
+          <svg class="env-face" viewBox="0 0 300 200">
+            <path d="M0 200L150 104M300 200L150 104" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2"/>
+            <g class="eye"><ellipse cx="115" cy="146" rx="12" ry="15" fill="#fff"/><circle class="pupil" cx="115" cy="148" r="6" fill="#1c2a21"/></g>
+            <g class="eye"><ellipse cx="185" cy="146" rx="12" ry="15" fill="#fff"/><circle class="pupil" cx="185" cy="148" r="6" fill="#1c2a21"/></g>
+            <path d="M138 174q12 10 24 0" fill="none" stroke="#1c2a21" stroke-width="4" stroke-linecap="round"/>
+            <circle cx="88" cy="168" r="7" fill="#f2a65a" opacity=".55"/><circle cx="212" cy="168" r="7" fill="#f2a65a" opacity=".55"/>
+          </svg>
+          <div class="env-flap"><i class="f"></i><i class="b"></i></div>
+        </div>
+        <div class="env-shadow"></div>
+      </div>
+      <div class="chipcard b">18 of 24 replied</div>
     </div>
   </div>
 
   <h2 class="sec">What you get</h2>
   <div class="bento">
-    <div class="tile glass t2" style="--tint:var(--butter)"><h3>Event pages</h3><p>A name, date, time, place and cover photo. Everything a guest needs sits on one page.</p></div>
-    <div class="tile glass"><h3>One link</h3><p>Copy it, send it anywhere. Guests need no account.</p></div>
-    <div class="tile glass"><h3>Yes or no</h3><p>Guests confirm or decline in two taps.</p></div>
-    <div class="tile glass"><h3>Guest lists</h3><p>Add people, change their status, export to CSV.</p></div>
-    <div class="tile glass"><h3>Calendar</h3><p>Every event in a month view.</p></div>
-    <div class="tile glass t2" style="--tint:var(--sage)"><h3>Reminders and confirmations</h3><p>Open a ready-written email to everyone who has not replied, or to everyone who is going.</p></div>
-    <div class="tile glass t2"><h3>The numbers</h3><p>Totals, reply rate and a bar for each event.</p></div>
-    <div class="tile glass t2"><h3>Light and dark</h3><p>Switch whenever you like. Your events stay saved in this browser.</p></div>
+    <div class="tile t2" style="--tint:var(--butter)"><h3>Event pages</h3><p class="ink">A name, date, time, place and cover photo. Everything a guest needs sits on one page.</p></div>
+    <div class="tile"><h3>One link</h3><p>Copy it, send it anywhere. Guests need no account.</p></div>
+    <div class="tile"><h3>Yes or no</h3><p>Guests confirm or decline in two taps.</p></div>
+    <div class="tile"><h3>Guest lists</h3><p>Add people, change their status, export to CSV.</p></div>
+    <div class="tile"><h3>Calendar</h3><p>Every event in a month view.</p></div>
+    <div class="tile t2" style="--tint:var(--sage)"><h3>Reminders and confirmations</h3><p class="ink">Open a ready-written email to everyone who has not replied, or to everyone who is going.</p></div>
+    <div class="tile t2"><h3>The numbers</h3><p>Totals, reply rate and a bar for each event.</p></div>
+    <div class="tile t2"><h3>Light and dark</h3><p>Switch whenever you like. Your events stay saved in this browser.</p></div>
   </div>
 
   <h2 class="sec">How it works</h2>
   <div class="steps">
-    <div class="step glass"><b>1</b><h3>Make the event</h3><p>Fill in the details and add a cover.</p></div>
-    <div class="step glass"><b>2</b><h3>Send the link</h3><p>Guests open it and answer.</p></div>
-    <div class="step glass"><b>3</b><h3>Watch replies arrive</h3><p>Track who is in, out or still thinking.</p></div>
+    <div class="step"><b>1</b><h3>Make the event</h3><p>Fill in the details and add a cover.</p></div>
+    <div class="step"><b>2</b><h3>Send the link</h3><p>Guests open it and answer.</p></div>
+    <div class="step"><b>3</b><h3>Watch replies arrive</h3><p>Track who is in, out or still thinking.</p></div>
   </div>
 
   <h2 class="sec">Jump in</h2>
   <div class="steps four">
-    <button class="tile glass" data-act="tab" data-v="events"><h3>Events</h3><p>Your cards</p></button>
-    <button class="tile glass" data-act="tab" data-v="calendar"><h3>Calendar</h3><p>Your month</p></button>
-    <button class="tile glass" data-act="tab" data-v="guests"><h3>Guests</h3><p>Your lists</p></button>
-    <button class="tile glass" data-act="tab" data-v="stats"><h3>Insights</h3><p>Your numbers</p></button>
+    <button class="tile" data-act="tab" data-v="events"><h3>Events</h3><p>Your cards</p></button>
+    <button class="tile" data-act="tab" data-v="calendar"><h3>Calendar</h3><p>Your month</p></button>
+    <button class="tile" data-act="tab" data-v="guests"><h3>Guests</h3><p>Your lists</p></button>
+    <button class="tile" data-act="tab" data-v="stats"><h3>Insights</h3><p>Your numbers</p></button>
   </div>
   <p class="foot">RSVP99 keeps everything in your browser. Clear your site data and your events go with it.</p>
 </section>
@@ -94,7 +358,7 @@
 <section class="view share" id="v-share" hidden></section>
 </main>
 
-<dialog id="formDlg" class="glass sheet">
+<dialog id="formDlg" class="sheet">
   <form id="evForm" method="dialog">
     <h2 id="formTitle">New event</h2>
     <label>Name<input name="name" required maxlength="80" placeholder="Rooftop dinner"></label>
@@ -111,8 +375,382 @@
     </div>
   </form>
 </dialog>
-<dialog id="detail" class="glass sheet wide"></dialog>
-<div id="toast" class="glass" role="status"></div>
-<script src="script.js"></script>
+<dialog id="detail" class="sheet wide"></dialog>
+<div id="toast" role="status"></div>
+
+<script>
+(function(){
+'use strict';
+var KEY='rsvp99.v1';
+var $=function(s,r){return (r||document).querySelector(s)};
+var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
+var S={events:[],theme:'light'};
+var cur='home', editing=null, openId=null, cal=new Date();
+cal.setDate(1);
+
+/* ---------- storage ---------- */
+function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.events)S=d}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage is full. Try a smaller cover image.')}}
+
+/* ---------- helpers ---------- */
+function uid(){return Math.random().toString(36).slice(2,9)}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function ev(id){return S.events.filter(function(e){return e.id===id})[0]}
+function when(e){
+  if(!e.date) return '';
+  var d=new Date(e.date+'T'+(e.time||'00:00'));
+  var s=d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
+  if(e.time) s+=' at '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
+  return s;
+}
+function cnt(e){
+  var c={yes:0,no:0,wait:0,all:e.guests.length};
+  e.guests.forEach(function(g){c[g.s]++});
+  c.rate=c.all?Math.round((c.yes+c.no)/c.all*100):0;
+  return c;
+}
+function sorted(){return S.events.slice().sort(function(a,b){return (a.date+(a.time||'')).localeCompare(b.date+(b.time||''))})}
+var tt;
+function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2200)}
+function link(e){
+  var p={n:e.name,d:e.date,t:e.time,l:e.loc,ds:e.desc};
+  var b=btoa(unescape(encodeURIComponent(JSON.stringify(p))));
+  return location.href.split('#')[0]+'#/e/'+e.id+'?d='+encodeURIComponent(b);
+}
+function copy(text){
+  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast('Link copied')},function(){toast('Copy failed')})}
+  else{var t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();try{document.execCommand('copy');toast('Link copied')}catch(e){toast('Copy failed')}t.remove()}
+}
+function download(name,text,type){
+  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type}));a.download=name;
+  document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);
+}
+function csvCell(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
+var LABEL={yes:'Going',no:'Declined',wait:'Waiting'};
+
+/* ---------- theme ---------- */
+function applyTheme(){
+  document.documentElement.setAttribute('data-theme',S.theme);
+  $('meta[name="theme-color"]').setAttribute('content',S.theme==='dark'?'#141915':'#f3eee0');
+}
+
+/* ---------- menu + views ---------- */
+function menu(open){
+  var m=$('#menu'),b=$('#menuBtn');
+  if(open===undefined) open=!m.classList.contains('open');
+  m.classList.toggle('open',open);
+  b.setAttribute('aria-expanded',open);
+  $('#menuLbl').textContent=open?'Close':'Menu';
+  document.body.style.overflow=open?'hidden':'';
+}
+function iris(x,y,mid){
+  var i=$('#iris');
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches){mid();return}
+  i.style.setProperty('--x',x+'px');i.style.setProperty('--y',y+'px');
+  i.classList.remove('go');void i.offsetWidth;i.classList.add('go');
+  setTimeout(mid,300);
+  setTimeout(function(){i.classList.remove('go')},720);
+}
+function show(v,pt){
+  var go=function(){
+    cur=v;
+    $$('.view').forEach(function(s){s.hidden=s.id!=='v-'+v});
+    $$('.mi[data-v]').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
+    if(R[v]) R[v]();
+    menu(false);
+    scrollTo(0,0);
+    if(location.hash.indexOf('#/e/')===0) history.replaceState(null,'',location.pathname+location.search);
+  };
+  if(pt) iris(pt.x,pt.y,go); else go();
+}
+function refresh(){if(R[cur]&&cur!=='home'&&cur!=='share')R[cur]()}
+
+/* ---------- renderers ---------- */
+var R={};
+R.home=function(){};
+
+function ecard(e){
+  var c=cnt(e);
+  var cover=e.cover?' style="background-image:url('+e.cover+')"':'';
+  return '<article class="ecard"><div class="cover"'+cover+'></div><div class="body">'+
+    '<h3>'+esc(e.name)+'</h3>'+
+    '<div class="meta">'+esc(when(e))+(e.loc?'<br>'+esc(e.loc):'')+'</div>'+
+    '<div class="bar2" aria-hidden="true"><i class="y" style="width:'+(c.all?c.yes/c.all*100:0)+'%"></i><i class="n" style="width:'+(c.all?c.no/c.all*100:0)+'%"></i></div>'+
+    '<div class="count"><span>'+c.yes+' going</span><span>'+c.no+' declined</span><span>'+c.wait+' waiting</span></div>'+
+    '<div class="acts"><button class="cta sm" data-act="open" data-id="'+e.id+'">Open</button>'+
+    '<button class="ghost sm" data-act="copy" data-id="'+e.id+'">Copy link</button>'+
+    '<button class="ghost sm" data-act="edit" data-id="'+e.id+'">Edit</button>'+
+    '<button class="ghost sm danger" data-act="del" data-id="'+e.id+'">Delete</button></div></div></article>';
+}
+R.events=function(){
+  var l=sorted();
+  $('#v-events').innerHTML='<div class="head"><h2>Events</h2><button class="cta" data-act="new">New event</button></div>'+
+    (l.length?'<div class="grid">'+l.map(ecard).join('')+'</div>':'<div class="empty"><p>No events yet. Create one to get a link you can send.</p><button class="cta" data-act="new">Create an event</button></div>');
+};
+R.calendar=function(){
+  var y=cal.getFullYear(),m=cal.getMonth();
+  var first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),prev=new Date(y,m,0).getDate();
+  var today=new Date(),ts=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
+  var h='<div class="head"><h2>Calendar</h2><div class="calnav"><button class="ghost sm" data-act="calPrev" aria-label="Previous month">Prev</button><b>'+
+    cal.toLocaleDateString(undefined,{month:'long',year:'numeric'})+'</b><button class="ghost sm" data-act="calNext" aria-label="Next month">Next</button><button class="ghost sm" data-act="calToday">Today</button></div></div><div class="cal">';
+  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){h+='<div class="dn">'+d+'</div>'});
+  for(var i=0;i<42;i++){
+    var d=i-first+1,out=false,dt;
+    if(d<1){d=prev+d;out=true;dt=new Date(y,m-1,d)}
+    else if(d>days){d=d-days;out=true;dt=new Date(y,m+1,d)}
+    else dt=new Date(y,m,d);
+    var ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
+    var list=S.events.filter(function(e){return e.date===ds});
+    h+='<div class="cell'+(out?' out':'')+(ds===ts?' today':'')+'"><span>'+d+'</span>'+
+      list.map(function(e){return '<button class="pill" data-act="open" data-id="'+e.id+'">'+esc(e.name)+'</button>'}).join('')+'</div>';
+    if(i>=34&&i-first+1>=days) break;
+  }
+  $('#v-calendar').innerHTML=h+'</div>';
+};
+R.guests=function(){
+  var l=sorted();
+  $('#v-guests').innerHTML='<div class="head"><h2>Guests</h2></div>'+
+    (l.length?'<div class="glist">'+l.map(function(e){
+      var c=cnt(e);
+      return '<div class="gblock"><header><h3>'+esc(e.name)+'</h3><div class="row"><button class="cta sm" data-act="open" data-id="'+e.id+'">Manage</button><button class="ghost sm" data-act="csv" data-id="'+e.id+'">Export CSV</button></div></header>'+
+        '<div class="chips">'+(e.guests.length?e.guests.map(function(g){return '<span class="chip '+g.s+'">'+esc(g.name)+'</span>'}).join(''):'<span class="meta">No guests yet.</span>')+'</div>'+
+        '<p class="meta" style="margin-top:10px">'+c.yes+' going, '+c.no+' declined, '+c.wait+' waiting</p></div>';
+    }).join('')+'</div>':'<div class="empty"><p>Guest lists live inside events. Create an event first.</p><button class="cta" data-act="new">Create an event</button></div>');
+};
+R.stats=function(){
+  var t={ev:S.events.length,all:0,yes:0,no:0,wait:0};
+  S.events.forEach(function(e){var c=cnt(e);t.all+=c.all;t.yes+=c.yes;t.no+=c.no;t.wait+=c.wait});
+  var rate=t.all?Math.round((t.yes+t.no)/t.all*100):0;
+  var k=[['Events',t.ev],['Guests',t.all],['Going',t.yes],['Declined',t.no],['Waiting',t.wait],['Reply rate',rate+'%']];
+  $('#v-stats').innerHTML='<div class="head"><h2>Insights</h2></div><div class="kpis">'+
+    k.map(function(x){return '<div class="kpi"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'}).join('')+'</div>'+
+    (S.events.length?'<div class="gblock">'+sorted().map(function(e){
+      var c=cnt(e);
+      return '<div class="srow"><div class="top"><b>'+esc(e.name)+'</b><span class="meta">'+c.rate+'% replied ('+(c.yes+c.no)+' of '+c.all+')</span></div>'+
+        '<div class="bar2"><i class="y" style="width:'+(c.all?c.yes/c.all*100:0)+'%"></i><i class="n" style="width:'+(c.all?c.no/c.all*100:0)+'%"></i></div></div>';
+    }).join('')+'</div>':'<div class="empty"><p>Numbers show up once you have an event.</p></div>');
+};
+
+/* ---------- share page ---------- */
+function parseHash(){
+  var m=location.hash.match(/^#\/e\/([^?]+)\??(.*)$/);
+  if(!m) return null;
+  var out={id:m[1],data:null},q=m[2].match(/d=([^&]+)/);
+  if(q){try{out.data=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(q[1])))))}catch(e){}}
+  return out;
+}
+function shareView(h){
+  var local=ev(h.id),p=h.data;
+  var e=local||(p?{id:h.id,name:p.n,date:p.d,time:p.t,loc:p.l,desc:p.ds,guests:[]}:null);
+  cur='share';
+  $$('.view').forEach(function(s){s.hidden=s.id!=='v-share'});
+  if(!e){$('#v-share').innerHTML='<div class="empty"><p>This invite link is incomplete. Ask the host to send it again.</p><a class="cta" href="#" data-act="tab" data-v="home">Go to RSVP99</a></div>';return}
+  var cover=e.cover?' style="background-image:url('+e.cover+')"':'';
+  $('#v-share').innerHTML='<div class="invite"><div class="cover"'+cover+'></div><div class="in">'+
+    '<h1>'+esc(e.name)+'</h1><p class="meta">'+esc(when(e))+(e.loc?'<br>'+esc(e.loc):'')+'</p>'+
+    (e.desc?'<p style="margin-top:12px">'+esc(e.desc)+'</p>':'')+
+    '<form id="rf" style="margin-top:18px"><label>Your name<input name="who" required maxlength="60" placeholder="Nora"></label>'+
+    '<div class="reply"><button type="submit" class="y" data-s="yes">I am going</button><button type="submit" data-s="no">I cannot make it</button></div></form>'+
+    '<p class="foot" id="rmsg" style="margin-top:14px"></p></div></div>';
+  var f=$('#rf');
+  f.addEventListener('submit',function(x){
+    x.preventDefault();
+    var s=(x.submitter&&x.submitter.dataset.s)||'yes',name=f.who.value.trim();
+    if(!name) return;
+    var t=ev(h.id);
+    if(!t){t={id:h.id,name:e.name,date:e.date,time:e.time,loc:e.loc,desc:e.desc,cover:'',guests:[]};S.events.push(t)}
+    var g=t.guests.filter(function(g){return g.name.toLowerCase()===name.toLowerCase()})[0];
+    if(g) g.s=s; else t.guests.push({id:uid(),name:name,email:'',s:s});
+    save();
+    $('#rmsg').textContent=s==='yes'?'Thanks, '+name+'. You are on the list.':'Thanks, '+name+'. Your decline is noted.';
+    toast('Reply saved');
+  });
+}
+function route(){
+  var h=parseHash();
+  if(h) shareView(h); else if(cur==='share') show('home');
+}
+
+/* ---------- event form ---------- */
+function openForm(id){
+  editing=id||null;
+  var f=$('#evForm'),e=id?ev(id):null;
+  $('#formTitle').textContent=e?'Edit event':'New event';
+  f.reset();
+  if(e){f.name.value=e.name;f.date.value=e.date;f.time.value=e.time||'';f.loc.value=e.loc||'';f.desc.value=e.desc||''}
+  menu(false);
+  $('#detail').open&&$('#detail').close();
+  $('#formDlg').showModal();
+}
+function shrink(file,cb){
+  var r=new FileReader();
+  r.onload=function(){
+    var im=new Image();
+    im.onload=function(){
+      var k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');
+      c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
+      cb(c.toDataURL('image/jpeg',.78));
+    };
+    im.onerror=function(){cb('')};
+    im.src=r.result;
+  };
+  r.onerror=function(){cb('')};
+  r.readAsDataURL(file);
+}
+function submitForm(x){
+  x.preventDefault();
+  var f=$('#evForm');
+  var done=function(cover){
+    var e=editing?ev(editing):null;
+    if(!e){e={id:uid(),guests:[],cover:''};S.events.push(e)}
+    e.name=f.name.value.trim();e.date=f.date.value;e.time=f.time.value;e.loc=f.loc.value.trim();e.desc=f.desc.value.trim();
+    if(cover) e.cover=cover;
+    save();$('#formDlg').close();toast(editing?'Event updated':'Event created');
+    var id=e.id;editing=null;
+    if(cur==='home') show('events'); else refresh();
+    if(openId===id) detail(id);
+  };
+  var file=f.cover.files&&f.cover.files[0];
+  if(file) shrink(file,done); else done('');
+}
+
+/* ---------- detail ---------- */
+function detail(id){
+  var e=ev(id);if(!e) return;
+  openId=id;
+  var c=cnt(e),cover=e.cover?' style="background-image:url('+e.cover+')"':'';
+  $('#detail').innerHTML='<div class="dcover"'+cover+'></div><h2>'+esc(e.name)+'</h2>'+
+    '<p class="meta">'+esc(when(e))+(e.loc?' &middot; '+esc(e.loc):'')+'</p>'+
+    (e.desc?'<p style="margin-top:10px">'+esc(e.desc)+'</p>':'')+
+    '<div class="linkrow"><input readonly value="'+esc(link(e))+'" aria-label="Invite link"><button class="cta sm" data-act="copy" data-id="'+id+'">Copy link</button></div>'+
+    '<div class="chips"><span class="chip yes">'+c.yes+' going</span><span class="chip no">'+c.no+' declined</span><span class="chip">'+c.wait+' waiting</span><span class="chip">'+c.rate+'% replied</span></div>'+
+    '<table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>'+
+    (e.guests.length?e.guests.map(function(g){
+      return '<tr><td>'+esc(g.name)+'</td><td>'+esc(g.email||'')+'</td><td><select data-g="'+g.id+'" aria-label="Status for '+esc(g.name)+'">'+
+        ['yes','no','wait'].map(function(s){return '<option value="'+s+'"'+(g.s===s?' selected':'')+'>'+LABEL[s]+'</option>'}).join('')+
+        '</select></td><td><button class="ghost sm danger" data-act="rmg" data-g="'+g.id+'" aria-label="Remove '+esc(g.name)+'">Remove</button></td></tr>';
+    }).join(''):'<tr><td colspan="4" class="meta">No guests yet. Add someone below or import a CSV.</td></tr>')+
+    '</tbody></table>'+
+    '<form id="gf" class="addg"><label>Name<input name="gn" required maxlength="60"></label><label>Email (optional)<input name="ge" type="email" maxlength="100"></label><button class="cta" type="submit" style="margin-bottom:12px">Add</button></form>'+
+    '<div class="tb"><button class="ghost sm" data-act="csv" data-id="'+id+'">Export CSV</button>'+
+    '<label class="ghost sm file" style="margin:0">Import CSV<input type="file" accept=".csv,text/csv" data-imp="'+id+'"></label>'+
+    '<button class="ghost sm" data-act="remind" data-id="'+id+'">Remind who has not replied</button>'+
+    '<button class="ghost sm" data-act="confirm" data-id="'+id+'">Email who is going</button></div>'+
+    '<div class="row end"><button class="ghost" data-act="edit" data-id="'+id+'">Edit</button><button class="cta" data-act="closeDetail">Done</button></div>';
+  if(!$('#detail').open) $('#detail').showModal();
+}
+function mail(e,list,subject,body){
+  var to=list.filter(function(g){return g.email}).map(function(g){return g.email});
+  if(!to.length){toast('Add guest emails first');return}
+  location.href='mailto:?bcc='+encodeURIComponent(to.join(','))+'&subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+}
+function csv(e){
+  var rows=[['Name','Email','Status']].concat(e.guests.map(function(g){return [g.name,g.email||'',LABEL[g.s]]}));
+  download((e.name||'guests').replace(/[^\w-]+/g,'-')+'-guests.csv',rows.map(function(r){return r.map(csvCell).join(',')}).join('\n'),'text/csv');
+}
+function parseCsv(text){
+  var rows=[],r=[],c='',q=false;
+  for(var i=0;i<text.length;i++){
+    var ch=text[i];
+    if(q){if(ch==='"'){if(text[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
+    else if(ch==='"') q=true;
+    else if(ch===','){r.push(c);c=''}
+    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;r.push(c);rows.push(r);r=[];c=''}
+    else c+=ch;
+  }
+  if(c||r.length){r.push(c);rows.push(r)}
+  return rows.filter(function(r){return r.join('').trim()});
+}
+function importCsv(id,file){
+  var e=ev(id),rd=new FileReader();
+  rd.onload=function(){
+    var rows=parseCsv(String(rd.result));
+    if(rows.length&&/^name$/i.test((rows[0][0]||'').trim())) rows.shift();
+    var n=0;
+    rows.forEach(function(r){
+      var name=(r[0]||'').trim();if(!name) return;
+      var st=(r[2]||'').trim().toLowerCase(),s=/^(going|yes)/.test(st)?'yes':/^(declin|no)/.test(st)?'no':'wait';
+      var ex=e.guests.filter(function(g){return g.name.toLowerCase()===name.toLowerCase()})[0];
+      if(ex){ex.email=(r[1]||ex.email||'').trim();ex.s=s}else e.guests.push({id:uid(),name:name,email:(r[1]||'').trim(),s:s});
+      n++;
+    });
+    save();detail(id);refresh();toast(n+' guest'+(n===1?'':'s')+' imported');
+  };
+  rd.readAsText(file);
+}
+
+/* ---------- events: delegated ---------- */
+document.addEventListener('click',function(x){
+  var b=x.target.closest('[data-act]');if(!b) return;
+  var a=b.dataset.act,id=b.dataset.id,e=id&&ev(id);
+  if(a==='tab'){x.preventDefault();var r=b.getBoundingClientRect();show(b.dataset.v,{x:r.left+r.width/2,y:r.top+r.height/2});}
+  else if(a==='menu') menu();
+  else if(a==='theme'){S.theme=S.theme==='dark'?'light':'dark';applyTheme();save()}
+  else if(a==='new') openForm();
+  else if(a==='closeForm') $('#formDlg').close();
+  else if(a==='closeDetail'){$('#detail').close()}
+  else if(a==='edit') openForm(id);
+  else if(a==='open') detail(id);
+  else if(a==='copy'&&e) copy(link(e));
+  else if(a==='csv'&&e) csv(e);
+  else if(a==='del'&&e){
+    if(confirm('Delete "'+e.name+'" and its guest list?')){S.events=S.events.filter(function(z){return z.id!==id});save();if($('#detail').open)$('#detail').close();refresh();toast('Event deleted')}
+  }
+  else if(a==='rmg'){
+    var t=ev(openId);t.guests=t.guests.filter(function(g){return g.id!==b.dataset.g});save();detail(openId);refresh();
+  }
+  else if(a==='remind'&&e) mail(e,e.guests.filter(function(g){return g.s==='wait'}),'Reminder: '+e.name,'Hi,\n\nA quick reminder to reply to '+e.name+(e.date?' on '+when(e):'')+'.\nRSVP here: '+link(e)+'\n\nThanks!');
+  else if(a==='confirm'&&e) mail(e,e.guests.filter(function(g){return g.s==='yes'}),'See you at '+e.name,'Hi,\n\nYou are confirmed for '+e.name+(e.date?'\nWhen: '+when(e):'')+(e.loc?'\nWhere: '+e.loc:'')+'\n\nSee you there!');
+  else if(a==='calPrev'){cal.setMonth(cal.getMonth()-1);R.calendar()}
+  else if(a==='calNext'){cal.setMonth(cal.getMonth()+1);R.calendar()}
+  else if(a==='calToday'){cal=new Date();cal.setDate(1);R.calendar()}
+});
+document.addEventListener('submit',function(x){
+  if(x.target.id==='evForm') submitForm(x);
+  else if(x.target.id==='gf'){
+    x.preventDefault();
+    var f=x.target,t=ev(openId);
+    t.guests.push({id:uid(),name:f.gn.value.trim(),email:f.ge.value.trim(),s:'wait'});
+    save();detail(openId);refresh();
+  }
+});
+document.addEventListener('change',function(x){
+  var t=x.target;
+  if(t.matches('select[data-g]')){
+    var e=ev(openId),g=e.guests.filter(function(g){return g.id===t.dataset.g})[0];
+    g.s=t.value;save();detail(openId);refresh();
+  } else if(t.dataset&&t.dataset.imp&&t.files[0]) importCsv(t.dataset.imp,t.files[0]);
+});
+document.addEventListener('keydown',function(x){if(x.key==='Escape') menu(false)});
+$('#detail').addEventListener('close',function(){openId=null});
+addEventListener('hashchange',route);
+
+/* ---------- envelope: scroll drives --p (flap) and --q (letter) ---------- */
+var host=$('#env3d'),tick=false;
+var still=matchMedia('(prefers-reduced-motion: reduce)').matches;
+function clamp(n){return n<0?0:n>1?1:n}
+function env(){
+  tick=false;
+  var p=still?1:clamp(scrollY/(innerHeight*.35));
+  host.style.setProperty('--p',p.toFixed(3));
+  host.style.setProperty('--q',clamp((p-.45)/.55).toFixed(3));
+}
+addEventListener('scroll',function(){if(!tick){tick=true;requestAnimationFrame(env)}},{passive:true});
+addEventListener('resize',env);
+
+/* ---------- eyes follow the pointer ---------- */
+addEventListener('pointermove',function(x){
+  $$('.eye').forEach(function(g){
+    var r=g.getBoundingClientRect();if(!r.width) return;
+    var dx=x.clientX-(r.left+r.width/2),dy=x.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy)||1,k=Math.min(4,d/40);
+    g.querySelector('.pupil').style.transform='translate('+(dx/d*k).toFixed(2)+'px,'+(dy/d*k).toFixed(2)+'px)';
+  });
+},{passive:true});
+
+/* ---------- start ---------- */
+load();applyTheme();env();route();
+})();
+</script>
 </body>
 </html>
