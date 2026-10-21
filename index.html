@@ -1,11 +1,15 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en" data-theme="light" data-perf="high">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>RSVP99 | Invites that get answered</title>
 <meta name="description" content="Plan an event, share one link and see who is coming.">
 <meta name="theme-color" content="#f3eee0">
+<link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+<link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+<link rel="manifest" href="/site.webmanifest">
+<link rel="shortcut icon" href="/favicon.ico">
 <style>
 /* ---------- tokens ---------- */
 :root{
@@ -53,33 +57,16 @@ a{color:inherit}
 .icon .moon{display:none}
 [data-theme="dark"] .icon .sun{display:none}
 [data-theme="dark"] .icon .moon{display:block}
-.mbtn{display:flex;align-items:center;gap:10px;height:42px;padding:0 16px;border-radius:21px;background:var(--ink);color:var(--page);font-weight:600}
-.burger{width:16px;height:10px;position:relative;display:block}
-.burger i{position:absolute;left:0;width:100%;height:2px;background:currentColor;border-radius:2px;transition:transform .3s,top .3s}
-.burger i:first-child{top:0}.burger i:last-child{top:8px}
-.mbtn[aria-expanded="true"] .burger i:first-child{top:4px;transform:rotate(45deg)}
-.mbtn[aria-expanded="true"] .burger i:last-child{top:4px;transform:rotate(-45deg)}
-
-/* ---------- menu ---------- */
-#menu{
-  position:fixed;inset:0;z-index:20;background:var(--page);
-  padding:calc(90px + env(safe-area-inset-top,0px)) 20px 30px;overflow:auto;
-  visibility:hidden;opacity:0;transform:translateY(-12px);
-  transition:opacity .25s,transform .25s,visibility 0s .25s;
-}
-#menu.open{visibility:visible;opacity:1;transform:none;transition:opacity .25s,transform .25s}
-.mgrid{max-width:760px;margin:0 auto;display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px}
-.mi{
-  text-align:left;padding:18px;border-radius:18px;background:var(--surface);border:1px solid var(--line);
-  display:flex;flex-direction:column;gap:2px;
-  opacity:0;transform:translateY(10px);
-}
-#menu.open .mi{opacity:1;transform:none;transition:opacity .35s,transform .35s;transition-delay:calc(var(--i) * 40ms)}
-.mi b{font:700 20px var(--serif)}
-.mi span{color:var(--mute);font-size:14px}
-.mi.on{border-color:var(--g);box-shadow:inset 0 0 0 1px var(--g)}
-.mi.w{background:var(--g);border-color:var(--g);color:#fff}
-.mi.w span{color:rgba(255,255,255,.8)}
+.perf{display:flex;align-items:center;gap:8px;height:42px;padding:0 15px 0 11px;border-radius:21px;border:1px solid var(--line);background:var(--surface);font-weight:600;font-size:14px}
+.perf:hover{border-color:var(--g)}
+.pico{width:20px;height:20px;position:relative;display:block;flex:none}
+.pico::before,.pico::after{content:"";position:absolute;display:block}
+.pico::before{left:2px;top:6px;width:11px;height:11px;border:2px solid currentColor;border-radius:2px}
+.pico::after{left:6px;top:2px;width:11px;height:11px;border:2px solid currentColor;border-radius:2px;opacity:.55}
+.pico i{display:none}
+[data-perf="low"] .pico::before{left:1px;top:5px;width:14px;height:10px;border-radius:3px}
+[data-perf="low"] .pico::after{left:17px;top:8px;width:2px;height:4px;border:0;border-radius:0 2px 2px 0;background:currentColor;opacity:1}
+[data-perf="low"] .pico i{display:block;position:absolute;left:4px;top:8px;width:5px;height:4px;border-radius:1px;background:currentColor}
 
 /* ---------- layout ---------- */
 main{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
@@ -113,31 +100,79 @@ main{max-width:1080px;margin:0 auto;padding:28px 20px 60px}
 .dot{width:9px;height:9px;border-radius:50%;background:var(--ok)}
 
 /* ---------- 3D envelope ---------- */
-.env3d{position:relative;width:300px;height:200px;max-width:100%;perspective:1100px;--p:0;--q:0;transform:translateY(calc(var(--p) * 70px))}
+.env3d{
+  --p:0;--q:0;--mx:0;--my:0;
+  --grain:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='120' height='120'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.09'/%3E%3C/svg%3E");
+  position:relative;width:300px;height:200px;max-width:100%;perspective:1100px;
+  transform:translateY(calc(var(--p) * 70px));
+}
+.sway{position:absolute;inset:0;transform-style:preserve-3d;animation:sway 7s ease-in-out infinite}
+@keyframes sway{0%,100%{transform:translateY(0) rotateZ(0)}50%{transform:translateY(-9px) rotateZ(.7deg)}}
 .envelope{
   position:relative;width:100%;height:100%;transform-style:preserve-3d;
-  transform:rotateX(calc(20deg - var(--p) * 14deg)) rotateY(calc(-24deg + var(--p) * 24deg)) rotateZ(calc(-3deg + var(--p) * 3deg));
-  will-change:transform;
+  transform:rotateX(calc(20deg - var(--p) * 14deg - var(--my) * 5deg)) rotateY(calc(-24deg + var(--p) * 24deg + var(--mx) * 8deg)) rotateZ(calc(-3deg + var(--p) * 3deg));
+  transition:transform .25s ease-out;will-change:transform;
 }
 .envelope>*{position:absolute;left:0;top:0;width:100%;height:100%}
-.env-back{background:var(--g-deep);border-radius:8px}
+.env-back{border-radius:8px;background:var(--grain),repeating-linear-gradient(135deg,transparent 0 7px,rgba(0,0,0,.1) 7px 8px),var(--g-deep)}
 .env-letter{
   left:7%;width:86%;top:8%;height:86%;display:flex;flex-direction:column;justify-content:center;gap:6px;padding:0 22px;
-  background:var(--paper);color:#1c2a21;border-radius:6px;
+  background:var(--grain),var(--paper);color:#1c2a21;border-radius:6px;
   transform:translateZ(2px) translateY(calc(var(--q) * -118px));
 }
 .env-letter b{font:700 20px/1.15 var(--serif)}
 .env-letter span{font-size:15px}
 .env-letter i{font-style:normal;font-size:13px;opacity:.7}
 .env-letter em{font-style:normal;font-size:12px;margin-top:6px;padding-top:8px;border-top:1px solid rgba(28,42,33,.18);opacity:.7}
-.env-front{background:var(--g);border-radius:8px;clip-path:polygon(0 0,50% 52%,100% 0,100% 100%,0 100%);transform:translateZ(4px)}
+.env-pl,.env-pr,.env-pb{background-image:var(--grain)}
+.env-pl{background-color:color-mix(in srgb,var(--g) 82%,#000);clip-path:polygon(0 0,50% 52%,0 100%);border-radius:8px 0 0 8px;transform:translateZ(3px)}
+.env-pr{background-color:color-mix(in srgb,var(--g) 91%,#000);clip-path:polygon(100% 0,50% 52%,100% 100%);border-radius:0 8px 8px 0;transform:translateZ(3px)}
+.env-pb{background-color:var(--g);clip-path:polygon(0 100%,50% 52%,100% 100%);border-radius:0 0 8px 8px;transform:translateZ(4px)}
 .env-face{transform:translateZ(5px);pointer-events:none;overflow:visible}
 .pupil{transition:transform .12s}
 .env-flap{height:52%;transform-origin:50% 0;transform-style:preserve-3d;transform:translateZ(calc(8px - var(--p) * 14px)) rotateX(calc(var(--p) * -180deg))}
 .env-flap i{position:absolute;inset:0;display:block;clip-path:polygon(0 0,100% 0,50% 100%);-webkit-backface-visibility:hidden;backface-visibility:hidden}
-.env-flap .f{background:var(--g);filter:brightness(1.08)}
-.env-flap .b{background:var(--g-soft);transform:rotateY(180deg)}
-.env-shadow{position:absolute;left:8%;right:8%;bottom:-26px;height:18px;background:radial-gradient(closest-side,rgba(0,0,0,.28),transparent);transform:scaleX(calc(1 - var(--p) * .12));opacity:calc(.9 - var(--p) * .25)}
+.env-flap .f{background:var(--grain),var(--g);filter:brightness(1.08)}
+.env-flap .b{background:var(--grain),repeating-linear-gradient(135deg,transparent 0 7px,rgba(0,0,0,.1) 7px 8px),var(--g-soft);transform:rotateY(180deg)}
+.seal{
+  position:absolute;left:50%;top:100%;width:30px;height:30px;margin:-24px 0 0 -15px;
+  border-radius:48% 52% 50% 50% / 52% 48% 52% 48%;background:var(--warn);
+  transform:translateZ(1px);-webkit-backface-visibility:hidden;backface-visibility:hidden;
+  display:grid;place-items:center;box-shadow:0 1px 0 rgba(0,0,0,.28),inset 0 0 0 3px rgba(0,0,0,.1);
+}
+.seal b{font:700 13px var(--serif);color:rgba(255,255,255,.88)}
+.env-shadow{position:absolute;left:8%;right:8%;bottom:-26px;height:18px;background:radial-gradient(closest-side,rgba(0,0,0,.28),transparent);transform:scaleX(calc(1 - var(--p) * .12));opacity:calc(.9 - var(--p) * .25);animation:shadowbob 7s ease-in-out infinite}
+@keyframes shadowbob{50%{scale:.92 1}}
+
+/* ---------- Lite envelope (pure CSS icon, no 3D) ---------- */
+.liteenv{position:relative;width:260px;height:176px;max-width:100%;animation:lbob 4.5s ease-in-out infinite}
+@keyframes lbob{50%{transform:translateY(-7px)}}
+.liteenv>*{position:absolute}
+.lb{inset:0;border-radius:8px;background:var(--g-deep);z-index:0}
+.ll{left:8%;width:84%;top:9%;height:84%;z-index:2;display:flex;flex-direction:column;justify-content:center;gap:4px;padding:0 18px;background:var(--paper);color:#1c2a21;border-radius:6px;animation:lletter 7s ease-in-out infinite}
+.ll b{font:700 17px/1.15 var(--serif)}
+.ll span{font-size:13px}
+.ll i{font-style:normal;font-size:12px;opacity:.7}
+.lp{inset:0;border-radius:8px;background:var(--g);clip-path:polygon(0 0,50% 52%,100% 0,100% 100%,0 100%);z-index:3}
+.lf{left:0;top:0;width:100%;height:52%;clip-path:polygon(0 0,100% 0,50% 100%);background:var(--g);transform-origin:50% 0;animation:lflap 7s ease-in-out infinite;z-index:4}
+@keyframes lflap{
+  0%,14%{transform:scaleY(1);background:var(--g);z-index:4}
+  24%{transform:scaleY(0);background:var(--g);z-index:4}
+  24.1%{z-index:1;background:var(--g-soft)}
+  34%,62%{transform:scaleY(-1);background:var(--g-soft);z-index:1}
+  72%{transform:scaleY(0);background:var(--g-soft);z-index:1}
+  72.1%{z-index:4;background:var(--g)}
+  82%,100%{transform:scaleY(1);background:var(--g);z-index:4}
+}
+@keyframes lletter{0%,30%{transform:translateY(0)}45%,58%{transform:translateY(-64px)}72%,100%{transform:translateY(0)}}
+.lface{inset:0;z-index:5;pointer-events:none}
+.lface .e{position:absolute;top:115px;width:21px;height:26px;border-radius:50%;background:#fff;animation:blink 5s infinite}
+.lface .e::after{content:"";position:absolute;left:5px;top:10px;width:11px;height:11px;border-radius:50%;background:#1c2a21}
+.lface .e1{left:89px}.lface .e2{left:150px}
+.lface .m{position:absolute;left:119px;top:144px;width:22px;height:12px;border-bottom:4px solid #1c2a21;border-radius:0 0 22px 22px}
+.lface .c{position:absolute;top:142px;width:12px;height:12px;border-radius:50%;background:#f2a65a;opacity:.55}
+.lface .c1{left:70px}.lface .c2{left:178px}
+@keyframes blink{0%,94%,100%{transform:scaleY(1)}97%{transform:scaleY(.1)}}
 
 /* ---------- tiles ---------- */
 .bento{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
@@ -244,11 +279,75 @@ td select{margin:0;padding:6px 8px}
 #iris.go{animation:iris .7s ease both}
 @keyframes iris{0%{opacity:1;clip-path:circle(0 at var(--x) var(--y))}50%{opacity:1;clip-path:circle(160% at var(--x) var(--y))}100%{opacity:0;clip-path:circle(160% at var(--x) var(--y))}}
 
+/* ---------- hero motion ---------- */
+.hero h1,.hero p,.hero .row{animation:rise .8s cubic-bezier(.2,.7,.2,1) both}
+.hero p{animation-delay:.1s}.hero .row{animation-delay:.2s}
+@keyframes rise{from{opacity:0;transform:translateY(16px)}}
+.chipcard.a{animation:floaty 5.5s ease-in-out infinite}
+.chipcard.b{animation:floaty 6.5s ease-in-out -2s infinite}
+@keyframes floaty{50%{transform:translateY(-8px)}}
+
+/* ---------- ticker ---------- */
+.ticker{overflow:hidden;margin:34px -20px 0;padding:14px 0;border-block:1px solid var(--line);-webkit-mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent);mask-image:linear-gradient(90deg,transparent,#000 8%,#000 92%,transparent)}
+.track{display:flex;width:max-content;animation:tick 40s linear infinite;font:italic 700 22px var(--serif);color:var(--mute)}
+.track span{padding-right:34px;white-space:nowrap}
+.track span::after{content:"\2022";margin-left:34px;color:var(--g);font-style:normal}
+@keyframes tick{to{transform:translateX(-50%)}}
+
+/* ---------- reveal on scroll ---------- */
+.rv{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+.rv.in{opacity:1;transform:none}
+
+/* ---------- dashboard tabs ---------- */
+.dtabs{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:22px;padding-bottom:16px;border-bottom:1px solid var(--line)}
+.dtabs .spacer{flex:1}
+.dtabs button.on{background:var(--ink);color:var(--page);border-color:var(--ink)}
+
+/* ---------- extra home content ---------- */
+.lead{color:var(--mute);font-size:18px;max-width:46ch}
+.split{display:grid;grid-template-columns:1fr 1fr;gap:28px;align-items:center}
+.checks{list-style:none;padding:0;display:grid;gap:10px;margin-top:14px}
+.checks li{padding-left:30px;position:relative;font-size:16px}
+.checks li::before{content:"";position:absolute;left:1px;top:.4em;width:15px;height:8px;border-left:3px solid var(--g);border-bottom:3px solid var(--g);transform:rotate(-45deg)}
+.sample{width:100%;max-width:380px;justify-self:center;border:1px solid var(--line);background:var(--surface);border-radius:24px;overflow:hidden}
+.sample .cover{height:110px}
+.sample .in{padding:18px}
+.sample h3{font-size:26px;margin-bottom:4px}
+.sample .fake{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.sample .fake span{padding:11px;border-radius:14px;border:1px solid var(--line);text-align:center;font-weight:700;font-size:14px}
+.sample .fake .y{background:var(--g);color:#fff;border-color:var(--g)}
+.mail{border:1px solid var(--line);border-radius:20px;background:var(--paper);color:#1c2a21;padding:22px;font:15px/1.6 var(--sans)}
+.mail b{display:block;font:700 12px var(--sans);opacity:.6;text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px}
+.mail p{margin-bottom:10px}
+.mail p:last-child{margin-bottom:0}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.mode{padding:22px;border-radius:20px;background:var(--surface);border:1px solid var(--line)}
+.mode h3{font-size:22px;margin-bottom:6px}
+.mode p{color:var(--mute);font-size:15px}
+.mode ul{list-style:none;padding:0;margin-top:12px;display:grid;gap:6px;font-size:15px}
+.mode li::before{content:"+ ";color:var(--g);font-weight:700}
+.faq{display:grid;gap:10px;max-width:780px}
+.faq details{border:1px solid var(--line);border-radius:16px;background:var(--surface);padding:0 18px}
+.faq summary{cursor:pointer;list-style:none;padding:16px 0;font:700 18px var(--serif);display:flex;justify-content:space-between;gap:12px}
+.faq summary::-webkit-details-marker{display:none}
+.faq summary::after{content:"+";font:400 26px/1 var(--sans);color:var(--g);transition:transform .25s}
+.faq details[open] summary::after{transform:rotate(45deg)}
+.faq details p{padding-bottom:16px;color:var(--mute);animation:rise .35s both}
+
+/* ---------- Lite mode ---------- */
+[data-perf="low"] #env3d{display:none}
+[data-perf="high"] .liteenv{display:none}
+[data-perf="low"] .ticker{display:none}
+[data-perf="low"] .rv{opacity:1;transform:none;transition:none}
+[data-perf="low"] .hero h1,[data-perf="low"] .hero p,[data-perf="low"] .hero .row,[data-perf="low"] .chipcard,[data-perf="low"] dialog.sheet[open],[data-perf="low"] .faq details p{animation:none}
+[data-perf="low"] html,html[data-perf="low"]{scroll-behavior:auto}
+
 /* ---------- responsive ---------- */
 @media (max-width:860px){
   .hero{grid-template-columns:1fr;min-height:0}
   .bento{grid-template-columns:repeat(2,1fr)}
   .steps,.steps.four{grid-template-columns:1fr 1fr}
+  .split{grid-template-columns:1fr}
 }
 @media (max-width:560px){
   .bento,.steps,.steps.four{grid-template-columns:1fr}
@@ -258,8 +357,10 @@ td select{margin:0;padding:6px 8px}
   .pill{font-size:10px;padding:1px 4px}
   .env3d{width:260px;height:174px}
   .env-letter{padding:0 16px}.env-letter b{font-size:17px}
-  .mbtn #menuLbl{display:none}
-  .mbtn{padding:0 13px}
+  .perf #perfLbl{display:none}
+  .perf{padding:0 12px}
+  .liteenv{scale:.9}
+  .split,.modes{grid-template-columns:1fr}
 }
 @media (prefers-reduced-motion:reduce){
   *{transition:none!important;animation:none!important}
@@ -277,21 +378,11 @@ td select{margin:0;padding:6px 8px}
       <svg viewBox="0 0 24 24" class="sun"><circle cx="12" cy="12" r="4.2"/><path d="M12 2.5v2.3M12 19.2v2.3M2.5 12h2.3M19.2 12h2.3M5.3 5.3l1.6 1.6M17.1 17.1l1.6 1.6M5.3 18.7l1.6-1.6M17.1 6.9l1.6-1.6"/></svg>
       <svg viewBox="0 0 24 24" class="moon"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z"/></svg>
     </button>
-    <button class="mbtn" id="menuBtn" data-act="menu" aria-expanded="false" aria-controls="menu"><span class="burger"><i></i><i></i></span><span id="menuLbl">Menu</span></button>
+    <button class="perf" id="perfBtn" data-act="perf" aria-pressed="false" aria-label="Performance mode"><span class="pico" aria-hidden="true"><i></i></span><span id="perfLbl">High</span></button>
   </div>
 </header>
 
-<nav id="menu" aria-label="Menu">
-  <div class="mgrid">
-    <button class="mi w on" data-act="tab" data-v="home" style="--i:0"><b>Home</b><span>What RSVP99 does</span></button>
-    <button class="mi" data-act="tab" data-v="events" style="--i:1"><b>Events</b><span>Create and manage</span></button>
-    <button class="mi" data-act="tab" data-v="calendar" style="--i:2"><b>Calendar</b><span>Month view</span></button>
-    <button class="mi" data-act="tab" data-v="guests" style="--i:3"><b>Guests</b><span>Lists and CSV</span></button>
-    <button class="mi" data-act="tab" data-v="stats" style="--i:4"><b>Insights</b><span>Replies at a glance</span></button>
-    <button class="mi w" data-act="new" style="--i:5"><b>New event</b><span>Start planning</span></button>
-    <button class="mi" data-act="theme" style="--i:6"><b>Theme</b><span>Light or dark</span></button>
-  </div>
-</nav>
+
 
 <main id="app">
 <section class="view" id="v-home">
@@ -299,15 +390,15 @@ td select{margin:0;padding:6px 8px}
     <div>
       <h1>Invites that get answered.</h1>
       <p>RSVP99 is a calm place to plan an event, send one link and see who is coming, without chasing anyone.</p>
-      <div class="row"><button class="cta big" data-act="new">Create an event</button><button class="ghost big" data-act="menu">Open the menu</button></div>
     </div>
     <div class="stage" aria-hidden="true">
       <div class="chipcard a"><i class="dot"></i>Nora is going</div>
       <div class="env3d" id="env3d">
+        <div class="sway">
         <div class="envelope" id="env">
           <div class="env-back"></div>
           <div class="env-letter"><b>You're invited</b><span>Rooftop dinner</span><i>Friday, 7 pm</i><em>Reply yes or no</em></div>
-          <div class="env-front"></div>
+          <div class="env-pl"></div><div class="env-pr"></div><div class="env-pb"></div>
           <svg class="env-face" viewBox="0 0 300 200">
             <path d="M0 200L150 104M300 200L150 104" fill="none" stroke="rgba(255,255,255,.28)" stroke-width="2"/>
             <g class="eye"><ellipse cx="115" cy="146" rx="12" ry="15" fill="#fff"/><circle class="pupil" cx="115" cy="148" r="6" fill="#1c2a21"/></g>
@@ -315,13 +406,23 @@ td select{margin:0;padding:6px 8px}
             <path d="M138 174q12 10 24 0" fill="none" stroke="#1c2a21" stroke-width="4" stroke-linecap="round"/>
             <circle cx="88" cy="168" r="7" fill="#f2a65a" opacity=".55"/><circle cx="212" cy="168" r="7" fill="#f2a65a" opacity=".55"/>
           </svg>
-          <div class="env-flap"><i class="f"></i><i class="b"></i></div>
+          <div class="env-flap"><i class="f"></i><i class="b"></i><span class="seal"><b>R</b></span></div>
+        </div>
         </div>
         <div class="env-shadow"></div>
+      </div>
+      <div class="liteenv">
+        <div class="lb"></div>
+        <div class="ll"><b>You're invited</b><span>Rooftop dinner</span><i>Friday, 7 pm</i></div>
+        <div class="lp"></div>
+        <div class="lf"></div>
+        <div class="lface"><span class="e e1"></span><span class="e e2"></span><span class="m"></span><span class="c c1"></span><span class="c c2"></span></div>
       </div>
       <div class="chipcard b">18 of 24 replied</div>
     </div>
   </div>
+
+  <div class="ticker" aria-hidden="true"><div class="track"><span>Birthdays</span><span>Dinner parties</span><span>Team offsites</span><span>Baby showers</span><span>Weddings</span><span>Reunions</span><span>Workshops</span><span>Book clubs</span><span>Housewarmings</span><span>Game nights</span><span>Birthdays</span><span>Dinner parties</span><span>Team offsites</span><span>Baby showers</span><span>Weddings</span><span>Reunions</span><span>Workshops</span><span>Book clubs</span><span>Housewarmings</span><span>Game nights</span></div></div>
 
   <h2 class="sec">What you get</h2>
   <div class="bento">
@@ -342,40 +443,90 @@ td select{margin:0;padding:6px 8px}
     <div class="step"><b>3</b><h3>Watch replies arrive</h3><p>Track who is in, out or still thinking.</p></div>
   </div>
 
-  <h2 class="sec">Jump in</h2>
-  <div class="steps four">
-    <button class="tile" data-act="tab" data-v="events"><h3>Events</h3><p>Your cards</p></button>
-    <button class="tile" data-act="tab" data-v="calendar"><h3>Calendar</h3><p>Your month</p></button>
-    <button class="tile" data-act="tab" data-v="guests"><h3>Guests</h3><p>Your lists</p></button>
-    <button class="tile" data-act="tab" data-v="stats"><h3>Insights</h3><p>Your numbers</p></button>
+  
+  <h2 class="sec">Made for gatherings of every size</h2>
+  <div class="steps">
+    <div class="step"><h3>Birthdays and dinners</h3><p>Small lists where you just want a quick headcount before you book the table.</p></div>
+    <div class="step"><h3>Team days</h3><p>Offsites, workshops and lunches. Import the team from a CSV and see who still needs a nudge.</p></div>
+    <div class="step"><h3>Weddings and showers</h3><p>Keep guests, emails and answers in one list, and export it for the caterer.</p></div>
+    <div class="step"><h3>Clubs and classes</h3><p>Recurring meetups are easy: edit the date, copy the link again and send it on.</p></div>
+    <div class="step"><h3>Community events</h3><p>One public-friendly page with the time, the place and what to bring.</p></div>
+    <div class="step"><h3>Reunions</h3><p>Track who is coming from far away, and email everyone who is going in one click.</p></div>
+  </div>
+
+  <h2 class="sec">What your guests see</h2>
+  <div class="split">
+    <div>
+      <p class="lead">No sign-up, no app, no password. Your guest opens the link and sees the plan, then answers.</p>
+      <ul class="checks">
+        <li>Your cover photo, event name, date, time and place</li>
+        <li>Your notes: dress code, parking, what to bring</li>
+        <li>One field for their name</li>
+        <li>Two big buttons: going, or cannot make it</li>
+        <li>A friendly confirmation once they reply</li>
+      </ul>
+    </div>
+    <div class="sample" aria-hidden="true">
+      <div class="cover"></div>
+      <div class="in"><h3>Rooftop dinner</h3><p class="meta">Fri, Nov 6, 2026 at 7:00 PM<br>The terrace, 12th floor</p>
+        <div class="fake"><span class="y">I am going</span><span>I cannot make it</span></div></div>
+    </div>
+  </div>
+
+  <h2 class="sec">Reminders that sound like you</h2>
+  <div class="split">
+    <div>
+      <p class="lead">When replies are slow, open a ready-written email in your own mail app. Guests are added as blind copies, so nobody sees anyone else's address.</p>
+      <ul class="checks">
+        <li>Remind only the guests who have not replied</li>
+        <li>Send a confirmation to everyone who is going</li>
+        <li>Edit the message before you send it</li>
+      </ul>
+    </div>
+    <div class="mail">
+      <b>Subject: Reminder: Rooftop dinner</b>
+      <p>Hi,</p>
+      <p>A quick reminder to reply to Rooftop dinner on Fri, Nov 6, 2026 at 7:00 PM.<br>RSVP here: your invite link</p>
+      <p>Thanks!</p>
+    </div>
+  </div>
+
+  <h2 class="sec">High mode and Lite mode</h2>
+  <div class="modes">
+    <div class="mode">
+      <h3>High</h3>
+      <p>The full show, best on a recent phone or laptop.</p>
+      <ul>
+        <li>A 3D paper envelope that opens as you scroll</li>
+        <li>It tilts gently toward your pointer</li>
+        <li>Page transitions, floating labels and reveal-on-scroll</li>
+      </ul>
+    </div>
+    <div class="mode">
+      <h3>Lite</h3>
+      <p>The same envelope drawn in plain CSS, for older or low-power devices.</p>
+      <ul>
+        <li>No 3D, no scroll effects, no page transitions</li>
+        <li>A small looping envelope animation instead</li>
+        <li>Lighter on battery and memory</li>
+      </ul>
+    </div>
+  </div>
+  <p class="foot" style="margin-top:14px">Nora keeps her face in both modes. Use the toggle in the top bar to switch at any time. RSVP99 starts in Lite on devices that report limited memory or ask for reduced motion, and remembers your choice.</p>
+
+  <h2 class="sec">Good to know</h2>
+  <div class="faq">
+    <details><summary>Do guests need an account?</summary><p>No. They open the link, type their name and answer. Nothing to install.</p></details>
+    <details><summary>Where are replies stored?</summary><p>Everything lives in the browser that holds it. The invite link carries the event details, and a guest's reply is saved in the browser they used to open it. To collect answers in your own list, set each guest's status yourself in the event, or import a CSV.</p></details>
+    <details><summary>Can I change an event after sharing the link?</summary><p>Yes. Edit it any time, then copy the link again so it carries the new details.</p></details>
+    <details><summary>How do reminders work?</summary><p>RSVP99 opens a draft in your email app addressed by blind copy to the right guests. It needs an email address on each guest, and you press send yourself.</p></details>
+    <details><summary>What happens to my data?</summary><p>It stays in this browser. Clearing your site data removes it, so export a guest list to CSV now and then as a backup.</p></details>
+    <details><summary>Does it work on a phone?</summary><p>Yes. The layout adapts to small screens, and Lite mode keeps older phones smooth.</p></details>
   </div>
   <p class="foot">RSVP99 keeps everything in your browser. Clear your site data and your events go with it.</p>
 </section>
-<section class="view" id="v-events" hidden></section>
-<section class="view" id="v-calendar" hidden></section>
-<section class="view" id="v-guests" hidden></section>
-<section class="view" id="v-stats" hidden></section>
-<section class="view share" id="v-share" hidden></section>
 </main>
 
-<dialog id="formDlg" class="sheet">
-  <form id="evForm" method="dialog">
-    <h2 id="formTitle">New event</h2>
-    <label>Name<input name="name" required maxlength="80" placeholder="Rooftop dinner"></label>
-    <div class="two">
-      <label>Date<input type="date" name="date" required></label>
-      <label>Time<input type="time" name="time"></label>
-    </div>
-    <label>Location<input name="loc" maxlength="100" placeholder="Where is it?"></label>
-    <label>Details<textarea name="desc" rows="3" maxlength="400" placeholder="Dress code, parking, what to bring"></textarea></label>
-    <label>Cover image<input type="file" name="cover" accept="image/*"></label>
-    <div class="row end">
-      <button type="button" class="ghost" data-act="closeForm">Cancel</button>
-      <button class="cta" type="submit">Save event</button>
-    </div>
-  </form>
-</dialog>
-<dialog id="detail" class="sheet wide"></dialog>
 <div id="toast" role="status"></div>
 
 <script>
@@ -384,50 +535,13 @@ td select{margin:0;padding:6px 8px}
 var KEY='rsvp99.v1';
 var $=function(s,r){return (r||document).querySelector(s)};
 var $$=function(s,r){return Array.prototype.slice.call((r||document).querySelectorAll(s))};
-var S={events:[],theme:'light'};
+var S={theme:'light',perf:null};
 
-var cur='home', editing=null, openId=null, cal=new Date();
-cal.setDate(1);
-
-/* ---------- storage ---------- */
-function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&d.events)S=d}catch(e){}}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){toast('Storage is full. Try a smaller cover image.')}}
-
-/* ---------- helpers ---------- */
-function uid(){return Math.random().toString(36).slice(2,9)}
-function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
-function ev(id){return S.events.filter(function(e){return e.id===id})[0]}
-function when(e){
-  if(!e.date) return '';
-  var d=new Date(e.date+'T'+(e.time||'00:00'));
-  var s=d.toLocaleDateString(undefined,{weekday:'short',month:'short',day:'numeric',year:'numeric'});
-  if(e.time) s+=' at '+d.toLocaleTimeString([],{hour:'numeric',minute:'2-digit'});
-  return s;
-}
-function cnt(e){
-  var c={yes:0,no:0,wait:0,all:e.guests.length};
-  e.guests.forEach(function(g){c[g.s]++});
-  c.rate=c.all?Math.round((c.yes+c.no)/c.all*100):0;
-  return c;
-}
-function sorted(){return S.events.slice().sort(function(a,b){return (a.date+(a.time||'')).localeCompare(b.date+(b.time||''))})}
+/* ---------- storage (theme and mode only) ---------- */
+function load(){try{var d=JSON.parse(localStorage.getItem(KEY));if(d&&typeof d==='object'){if(d.theme)S.theme=d.theme;if(d.perf)S.perf=d.perf}}catch(e){}}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(S))}catch(e){}}
 var tt;
 function toast(m){var t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(tt);tt=setTimeout(function(){t.classList.remove('on')},2200)}
-function link(e){
-  var p={n:e.name,d:e.date,t:e.time,l:e.loc,ds:e.desc};
-  var b=btoa(unescape(encodeURIComponent(JSON.stringify(p))));
-  return location.href.split('#')[0]+'#/e/'+e.id+'?d='+encodeURIComponent(b);
-}
-function copy(text){
-  if(navigator.clipboard&&navigator.clipboard.writeText){navigator.clipboard.writeText(text).then(function(){toast('Link copied')},function(){toast('Copy failed')})}
-  else{var t=document.createElement('textarea');t.value=text;document.body.appendChild(t);t.select();try{document.execCommand('copy');toast('Link copied')}catch(e){toast('Copy failed')}t.remove()}
-}
-function download(name,text,type){
-  var a=document.createElement('a');a.href=URL.createObjectURL(new Blob([text],{type:type}));a.download=name;
-  document.body.appendChild(a);a.click();setTimeout(function(){URL.revokeObjectURL(a.href);a.remove()},500);
-}
-function csvCell(v){v=String(v==null?'':v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v}
-var LABEL={yes:'Going',no:'Declined',wait:'Waiting'};
 
 /* ---------- theme ---------- */
 function applyTheme(){
@@ -435,304 +549,14 @@ function applyTheme(){
   $('meta[name="theme-color"]').setAttribute('content',S.theme==='dark'?'#141915':'#f3eee0');
 }
 
-/* ---------- menu + views ---------- */
-function menu(open){
-  var m=$('#menu'),b=$('#menuBtn');
-  if(open===undefined) open=!m.classList.contains('open');
-  m.classList.toggle('open',open);
-  b.setAttribute('aria-expanded',open);
-  $('#menuLbl').textContent=open?'Close':'Menu';
-  document.body.style.overflow=open?'hidden':'';
-}
-function iris(x,y,mid){
-  var i=$('#iris');
-  if(matchMedia('(prefers-reduced-motion: reduce)').matches){mid();return}
-  i.style.setProperty('--x',x+'px');i.style.setProperty('--y',y+'px');
-  i.classList.remove('go');void i.offsetWidth;i.classList.add('go');
-  setTimeout(mid,300);
-  setTimeout(function(){i.classList.remove('go')},720);
-}
-function show(v,pt){
-  var go=function(){
-    cur=v;
-    $$('.view').forEach(function(s){s.hidden=s.id!=='v-'+v});
-    $$('.mi[data-v]').forEach(function(b){b.classList.toggle('on',b.dataset.v===v)});
-    if(R[v]) R[v]();
-    menu(false);
-    scrollTo(0,0);
-    env();
-    if(location.hash.indexOf('#/e/')===0) history.replaceState(null,'',location.pathname+location.search);
-  };
-  if(pt) iris(pt.x,pt.y,go); else go();
-}
-function refresh(){if(R[cur]&&cur!=='home'&&cur!=='share')R[cur]()}
-
-/* ---------- renderers ---------- */
-var R={};
-R.home=function(){};
-
-function ecard(e){
-  var c=cnt(e);
-  var cover=e.cover?' style="background-image:url('+e.cover+')"':'';
-  return '<article class="ecard"><div class="cover"'+cover+'></div><div class="body">'+
-    '<h3>'+esc(e.name)+'</h3>'+
-    '<div class="meta">'+esc(when(e))+(e.loc?'<br>'+esc(e.loc):'')+'</div>'+
-    '<div class="bar2" aria-hidden="true"><i class="y" style="width:'+(c.all?c.yes/c.all*100:0)+'%"></i><i class="n" style="width:'+(c.all?c.no/c.all*100:0)+'%"></i></div>'+
-    '<div class="count"><span>'+c.yes+' going</span><span>'+c.no+' declined</span><span>'+c.wait+' waiting</span></div>'+
-    '<div class="acts"><button class="cta sm" data-act="open" data-id="'+e.id+'">Open</button>'+
-    '<button class="ghost sm" data-act="copy" data-id="'+e.id+'">Copy link</button>'+
-    '<button class="ghost sm" data-act="edit" data-id="'+e.id+'">Edit</button>'+
-    '<button class="ghost sm danger" data-act="del" data-id="'+e.id+'">Delete</button></div></div></article>';
-}
-R.events=function(){
-  var l=sorted();
-  $('#v-events').innerHTML='<div class="head"><h2>Events</h2><button class="cta" data-act="new">New event</button></div>'+
-    (l.length?'<div class="grid">'+l.map(ecard).join('')+'</div>':'<div class="empty"><p>No events yet. Create one to get a link you can send.</p><button class="cta" data-act="new">Create an event</button></div>');
-};
-R.calendar=function(){
-  var y=cal.getFullYear(),m=cal.getMonth();
-  var first=new Date(y,m,1).getDay(),days=new Date(y,m+1,0).getDate(),prev=new Date(y,m,0).getDate();
-  var today=new Date(),ts=today.getFullYear()+'-'+String(today.getMonth()+1).padStart(2,'0')+'-'+String(today.getDate()).padStart(2,'0');
-  var h='<div class="head"><h2>Calendar</h2><div class="calnav"><button class="ghost sm" data-act="calPrev" aria-label="Previous month">Prev</button><b>'+
-    cal.toLocaleDateString(undefined,{month:'long',year:'numeric'})+'</b><button class="ghost sm" data-act="calNext" aria-label="Next month">Next</button><button class="ghost sm" data-act="calToday">Today</button></div></div><div class="cal">';
-  ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].forEach(function(d){h+='<div class="dn">'+d+'</div>'});
-  for(var i=0;i<42;i++){
-    var d=i-first+1,out=false,dt;
-    if(d<1){d=prev+d;out=true;dt=new Date(y,m-1,d)}
-    else if(d>days){d=d-days;out=true;dt=new Date(y,m+1,d)}
-    else dt=new Date(y,m,d);
-    var ds=dt.getFullYear()+'-'+String(dt.getMonth()+1).padStart(2,'0')+'-'+String(dt.getDate()).padStart(2,'0');
-    var list=S.events.filter(function(e){return e.date===ds});
-    h+='<div class="cell'+(out?' out':'')+(ds===ts?' today':'')+'"><span>'+d+'</span>'+
-      list.map(function(e){return '<button class="pill" data-act="open" data-id="'+e.id+'">'+esc(e.name)+'</button>'}).join('')+'</div>';
-    if(i>=34&&i-first+1>=days) break;
-  }
-  $('#v-calendar').innerHTML=h+'</div>';
-};
-R.guests=function(){
-  var l=sorted();
-  $('#v-guests').innerHTML='<div class="head"><h2>Guests</h2></div>'+
-    (l.length?'<div class="glist">'+l.map(function(e){
-      var c=cnt(e);
-      return '<div class="gblock"><header><h3>'+esc(e.name)+'</h3><div class="row"><button class="cta sm" data-act="open" data-id="'+e.id+'">Manage</button><button class="ghost sm" data-act="csv" data-id="'+e.id+'">Export CSV</button></div></header>'+
-        '<div class="chips">'+(e.guests.length?e.guests.map(function(g){return '<span class="chip '+g.s+'">'+esc(g.name)+'</span>'}).join(''):'<span class="meta">No guests yet.</span>')+'</div>'+
-        '<p class="meta" style="margin-top:10px">'+c.yes+' going, '+c.no+' declined, '+c.wait+' waiting</p></div>';
-    }).join('')+'</div>':'<div class="empty"><p>Guest lists live inside events. Create an event first.</p><button class="cta" data-act="new">Create an event</button></div>');
-};
-R.stats=function(){
-  var t={ev:S.events.length,all:0,yes:0,no:0,wait:0};
-  S.events.forEach(function(e){var c=cnt(e);t.all+=c.all;t.yes+=c.yes;t.no+=c.no;t.wait+=c.wait});
-  var rate=t.all?Math.round((t.yes+t.no)/t.all*100):0;
-  var k=[['Events',t.ev],['Guests',t.all],['Going',t.yes],['Declined',t.no],['Waiting',t.wait],['Reply rate',rate+'%']];
-  $('#v-stats').innerHTML='<div class="head"><h2>Insights</h2></div><div class="kpis">'+
-    k.map(function(x){return '<div class="kpi"><b>'+x[1]+'</b><span>'+x[0]+'</span></div>'}).join('')+'</div>'+
-    (S.events.length?'<div class="gblock">'+sorted().map(function(e){
-      var c=cnt(e);
-      return '<div class="srow"><div class="top"><b>'+esc(e.name)+'</b><span class="meta">'+c.rate+'% replied ('+(c.yes+c.no)+' of '+c.all+')</span></div>'+
-        '<div class="bar2"><i class="y" style="width:'+(c.all?c.yes/c.all*100:0)+'%"></i><i class="n" style="width:'+(c.all?c.no/c.all*100:0)+'%"></i></div></div>';
-    }).join('')+'</div>':'<div class="empty"><p>Numbers show up once you have an event.</p></div>');
-};
-
-/* ---------- share page ---------- */
-function parseHash(){
-  var m=location.hash.match(/^#\/e\/([^?]+)\??(.*)$/);
-  if(!m) return null;
-  var out={id:m[1],data:null},q=m[2].match(/d=([^&]+)/);
-  if(q){try{out.data=JSON.parse(decodeURIComponent(escape(atob(decodeURIComponent(q[1])))))}catch(e){}}
-  return out;
-}
-function shareView(h){
-  var local=ev(h.id),p=h.data;
-  var e=local||(p?{id:h.id,name:p.n,date:p.d,time:p.t,loc:p.l,desc:p.ds,guests:[]}:null);
-  cur='share';
-  $$('.view').forEach(function(s){s.hidden=s.id!=='v-share'});
-  if(!e){$('#v-share').innerHTML='<div class="empty"><p>This invite link is incomplete. Ask the host to send it again.</p><a class="cta" href="#" data-act="tab" data-v="home">Go to RSVP99</a></div>';return}
-  var cover=e.cover?' style="background-image:url('+e.cover+')"':'';
-  $('#v-share').innerHTML='<div class="invite"><div class="cover"'+cover+'></div><div class="in">'+
-    '<h1>'+esc(e.name)+'</h1><p class="meta">'+esc(when(e))+(e.loc?'<br>'+esc(e.loc):'')+'</p>'+
-    (e.desc?'<p style="margin-top:12px">'+esc(e.desc)+'</p>':'')+
-    '<form id="rf" style="margin-top:18px"><label>Your name<input name="who" required maxlength="60" placeholder="Nora"></label>'+
-    '<div class="reply"><button type="submit" class="y" data-s="yes">I am going</button><button type="submit" data-s="no">I cannot make it</button></div></form>'+
-    '<p class="foot" id="rmsg" style="margin-top:14px"></p></div></div>';
-  var f=$('#rf');
-  f.addEventListener('submit',function(x){
-    x.preventDefault();
-    var s=(x.submitter&&x.submitter.dataset.s)||'yes',name=f.who.value.trim();
-    if(!name) return;
-    var t=ev(h.id);
-    if(!t){t={id:h.id,name:e.name,date:e.date,time:e.time,loc:e.loc,desc:e.desc,cover:'',guests:[]};S.events.push(t)}
-    var g=t.guests.filter(function(gx){return gx.name.toLowerCase()===name.toLowerCase()})[0];
-    if(g) g.s=s; else t.guests.push({id:uid(),name:name,email:'',s:s});
-    save();
-    $('#rmsg').textContent=s==='yes'?'Thanks, '+name+'. You are on the list.':'Thanks, '+name+'. Your decline is noted.';
-    toast('Reply saved');
-  });
-}
-function route(){
-  var h=parseHash();
-  if(h) shareView(h); else if(cur==='share') show('home');
-}
-
-/* ---------- event form ---------- */
-function openForm(id){
-  editing=id||null;
-  var f=$('#evForm'),e=id?ev(id):null;
-  $('#formTitle').textContent=e?'Edit event':'New event';
-  f.reset();
-  if(e){f.name.value=e.name;f.date.value=e.date;f.time.value=e.time||'';f.loc.value=e.loc||'';f.desc.value=e.desc||''}
-  menu(false);
-  if($('#detail').open) $('#detail').close();
-  $('#formDlg').showModal();
-}
-function shrink(file,cb){
-  var r=new FileReader();
-  r.onload=function(){
-    var im=new Image();
-    im.onload=function(){
-      var k=Math.min(1,900/Math.max(im.width,im.height)),c=document.createElement('canvas');
-      c.width=Math.round(im.width*k);c.height=Math.round(im.height*k);
-      c.getContext('2d').drawImage(im,0,0,c.width,c.height);
-      cb(c.toDataURL('image/jpeg',.78));
-    };
-    im.onerror=function(){cb('')};
-    im.src=r.result;
-  };
-  r.onerror=function(){cb('')};
-  r.readAsDataURL(file);
-}
-function submitForm(x){
-  x.preventDefault();
-  var f=$('#evForm');
-  var done=function(cover){
-    var e=editing?ev(editing):null;
-    if(!e){e={id:uid(),guests:[],cover:''};S.events.push(e)}
-    e.name=f.name.value.trim();e.date=f.date.value;e.time=f.time.value;e.loc=f.loc.value.trim();e.desc=f.desc.value.trim();
-    if(cover) e.cover=cover;
-    save();$('#formDlg').close();toast(editing?'Event updated':'Event created');
-    var id=e.id;editing=null;
-    if(cur==='home') show('events'); else refresh();
-    if(openId===id) detail(id);
-  };
-  var file=f.cover.files&&f.cover.files[0];
-  if(file) shrink(file,done); else done('');
-}
-
-/* ---------- detail ---------- */
-function detail(id){
-  var e=ev(id);if(!e) return;
-  openId=id;
-  var c=cnt(e),cover=e.cover?' style="background-image:url('+e.cover+')"':'';
-  $('#detail').innerHTML='<div class="dcover"'+cover+'></div><h2>'+esc(e.name)+'</h2>'+
-    '<p class="meta">'+esc(when(e))+(e.loc?' &middot; '+esc(e.loc):'')+'</p>'+
-    (e.desc?'<p style="margin-top:10px">'+esc(e.desc)+'</p>':'')+
-    '<div class="linkrow"><input readonly value="'+esc(link(e))+'" aria-label="Invite link"><button class="cta sm" data-act="copy" data-id="'+id+'">Copy link</button></div>'+
-    '<div class="chips"><span class="chip yes">'+c.yes+' going</span><span class="chip no">'+c.no+' declined</span><span class="chip">'+c.wait+' waiting</span><span class="chip">'+c.rate+'% replied</span></div>'+
-    '<table><thead><tr><th>Name</th><th>Email</th><th>Status</th><th></th></tr></thead><tbody>'+
-    (e.guests.length?e.guests.map(function(g){
-      return '<tr><td>'+esc(g.name)+'</td><td>'+esc(g.email||'')+'</td><td><select data-g="'+g.id+'" aria-label="Status for '+esc(g.name)+'">'+
-        ['yes','no','wait'].map(function(s){return '<option value="'+s+'"'+(g.s===s?' selected':'')+'>'+LABEL[s]+'</option>'}).join('')+
-        '</select></td><td><button class="ghost sm danger" data-act="rmg" data-g="'+g.id+'" aria-label="Remove '+esc(g.name)+'">Remove</button></td></tr>';
-    }).join(''):'<tr><td colspan="4" class="meta">No guests yet. Add someone below or import a CSV.</td></tr>')+
-    '</tbody></table>'+
-    '<form id="gf" class="addg"><label>Name<input name="gn" required maxlength="60"></label><label>Email (optional)<input name="ge" type="email" maxlength="100"></label><button class="cta" type="submit" style="margin-bottom:12px">Add</button></form>'+
-    '<div class="tb"><button class="ghost sm" data-act="csv" data-id="'+id+'">Export CSV</button>'+
-    '<label class="ghost sm file" style="margin:0">Import CSV<input type="file" accept=".csv,text/csv" data-imp="'+id+'"></label>'+
-    '<button class="ghost sm" data-act="remind" data-id="'+id+'">Remind who has not replied</button>'+
-    '<button class="ghost sm" data-act="confirm" data-id="'+id+'">Email who is going</button></div>'+
-    '<div class="row end"><button class="ghost" data-act="edit" data-id="'+id+'">Edit</button><button class="cta" data-act="closeDetail">Done</button></div>';
-  if(!$('#detail').open) $('#detail').showModal();
-}
-function mail(e,list,subject,body){
-  var to=list.filter(function(g){return g.email}).map(function(g){return g.email});
-  if(!to.length){toast('Add guest emails first');return}
-  location.href='mailto:?bcc='+encodeURIComponent(to.join(','))+'&subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
-}
-function csv(e){
-  var rows=[['Name','Email','Status']].concat(e.guests.map(function(g){return [g.name,g.email||'',LABEL[g.s]]}));
-  download((e.name||'guests').replace(/[^\w-]+/g,'-')+'-guests.csv',rows.map(function(r){return r.map(csvCell).join(',')}).join('\n'),'text/csv');
-}
-function parseCsv(text){
-  var rows=[],r=[],c='',q=false;
-  for(var i=0;i<text.length;i++){
-    var ch=text[i];
-    if(q){if(ch==='"'){if(text[i+1]==='"'){c+='"';i++}else q=false}else c+=ch}
-    else if(ch==='"') q=true;
-    else if(ch===','){r.push(c);c=''}
-    else if(ch==='\n'||ch==='\r'){if(ch==='\r'&&text[i+1]==='\n')i++;r.push(c);rows.push(r);r=[];c=''}
-    else c+=ch;
-  }
-  if(c||r.length){r.push(c);rows.push(r)}
-  return rows.filter(function(rw){return rw.join('').trim()});
-}
-function importCsv(id,file){
-  var e=ev(id),rd=new FileReader();
-  rd.onload=function(){
-    var rows=parseCsv(String(rd.result));
-    if(rows.length&&/^name$/i.test((rows[0][0]||'').trim())) rows.shift();
-    var n=0;
-    rows.forEach(function(r){
-      var name=(r[0]||'').trim();if(!name) return;
-      var st=(r[2]||'').trim().toLowerCase(),s=/^(going|yes)/.test(st)?'yes':/^(declin|no)/.test(st)?'no':'wait';
-      var ex=e.guests.filter(function(g){return g.name.toLowerCase()===name.toLowerCase()})[0];
-      if(ex){ex.email=(r[1]||ex.email||'').trim();ex.s=s}else e.guests.push({id:uid(),name:name,email:(r[1]||'').trim(),s:s});
-      n++;
-    });
-    save();detail(id);refresh();toast(n+' guest'+(n===1?'':'s')+' imported');
-  };
-  rd.readAsText(file);
-}
-
-/* ---------- events: delegated ---------- */
+/* ---------- clicks ---------- */
 document.addEventListener('click',function(x){
   var b=x.target.closest('[data-act]');if(!b) return;
-  var a=b.dataset.act,id=b.dataset.id,e=id&&ev(id);
-  if(a==='tab'){x.preventDefault();var r=b.getBoundingClientRect();show(b.dataset.v,{x:r.left+r.width/2,y:r.top+r.height/2});}
-  else if(a==='menu') menu();
+  var a=b.dataset.act;
+  if(a==='tab'){x.preventDefault();scrollTo({top:0,behavior:S.perf==='low'?'auto':'smooth'})}
+  else if(a==='perf'){S.perf=S.perf==='low'?'high':'low';applyPerf();save();toast(S.perf==='low'?'Lite mode on. 3D effects are off.':'High mode on. 3D effects are back.')}
   else if(a==='theme'){S.theme=S.theme==='dark'?'light':'dark';applyTheme();save()}
-  else if(a==='new') openForm();
-  else if(a==='closeForm') $('#formDlg').close();
-  else if(a==='closeDetail'){$('#detail').close()}
-  else if(a==='edit') openForm(id);
-  else if(a==='open') detail(id);
-  else if(a==='copy'&&e) copy(link(e));
-  else if(a==='csv'&&e) csv(e);
-  else if(a==='del'&&e){
-    if(confirm('Delete "'+e.name+'" and its guest list?')){S.events=S.events.filter(function(z){return z.id!==id});save();if($('#detail').open)$('#detail').close();refresh();toast('Event deleted')}
-  }
-  else if(a==='rmg'){
-    var t=ev(openId);if(!t)return;
-    t.guests=t.guests.filter(function(g){return g.id!==b.dataset.g});save();detail(openId);refresh();
-  }
-  else if(a==='remind'&&e) mail(e,e.guests.filter(function(g){return g.s==='wait'}),'Reminder: '+e.name,'Hi,\n\nA quick reminder to reply to '+e.name+(e.date?' on '+when(e):'')+'.\nRSVP here: '+link(e)+'\n\nThanks!');
-  else if(a==='confirm'&&e) mail(e,e.guests.filter(function(g){return g.s==='yes'}),'See you at '+e.name,'Hi,\n\nYou are confirmed for '+e.name+(e.date?'\nWhen: '+when(e):'')+(e.loc?'\nWhere: '+e.loc:'')+'\n\nSee you there!');
-  else if(a==='calPrev'){cal.setMonth(cal.getMonth()-1);R.calendar()}
-  else if(a==='calNext'){cal.setMonth(cal.getMonth()+1);R.calendar()}
-  else if(a==='calToday'){cal=new Date();cal.setDate(1);R.calendar()}
 });
-document.addEventListener('submit',function(x){
-  if(x.target.id==='evForm') submitForm(x);
-  else if(x.target.id==='gf'){
-    x.preventDefault();
-    var f=x.target,t=ev(openId);if(!t)return;
-    var name=f.gn.value.trim();
-    if(!name)return;
-    t.guests.push({id:uid(),name:name,email:f.ge.value.trim(),s:'wait'});
-    save();detail(openId);refresh();
-  }
-});
-document.addEventListener('change',function(x){
-  var t=x.target;
-  if(t.matches&&t.matches('select[data-g]')){
-    if(!openId)return;
-    var e=ev(openId);if(!e)return;
-    var g=e.guests.filter(function(gx){return gx.id===t.dataset.g})[0];
-    if(!g)return;
-    g.s=t.value;save();detail(openId);refresh();
-  } else if(t.dataset&&t.dataset.imp&&t.files[0]) importCsv(t.dataset.imp,t.files[0]);
-});
-document.addEventListener('keydown',function(x){if(x.key==='Escape') menu(false)});
- $('#detail').addEventListener('close',function(){openId=null});
-addEventListener('hashchange',route);
 
 /* ---------- envelope: scroll drives --p (flap) and --q (letter) ---------- */
 var host=$('#env3d'),tick=false;
@@ -740,6 +564,7 @@ var still=matchMedia('(prefers-reduced-motion: reduce)').matches;
 function clamp(n){return n<0?0:n>1?1:n}
 function env(){
   tick=false;
+  if(S.perf==='low') return;
   var p=still?1:clamp(window.scrollY/(window.innerHeight*.35));
   host.style.setProperty('--p',p.toFixed(3));
   host.style.setProperty('--q',clamp((p-.45)/.55).toFixed(3));
@@ -749,6 +574,9 @@ addEventListener('resize',env);
 
 /* ---------- eyes follow the pointer ---------- */
 addEventListener('pointermove',function(x){
+  if(S.perf==='low') return;
+  host.style.setProperty('--mx',((x.clientX/innerWidth-.5)*2).toFixed(3));
+  host.style.setProperty('--my',((x.clientY/innerHeight-.5)*2).toFixed(3));
   $$('.eye').forEach(function(g){
     var r=g.getBoundingClientRect();if(!r.width) return;
     var dx=x.clientX-(r.left+r.width/2),dy=x.clientY-(r.top+r.height/2),d=Math.hypot(dx,dy)||1,k=Math.min(4,d/40);
@@ -757,8 +585,35 @@ addEventListener('pointermove',function(x){
   });
 },{passive:true});
 
+/* ---------- performance mode ---------- */
+function detect(){
+  var m=navigator.deviceMemory,c=navigator.hardwareConcurrency;
+  if(matchMedia('(prefers-reduced-motion: reduce)').matches) return 'low';
+  if((m&&m<=2)||(c&&c<=2)) return 'low';
+  return 'high';
+}
+function applyPerf(){
+  document.documentElement.setAttribute('data-perf',S.perf);
+  var b=$('#perfBtn'),low=S.perf==='low';
+  b.setAttribute('aria-pressed',low);
+  b.setAttribute('aria-label','Performance mode: '+(low?'Lite':'High')+'. Tap to switch.');
+  $('#perfLbl').textContent=low?'Lite':'High';
+  env();
+}
+
+/* ---------- reveal on scroll ---------- */
+function initReveal(){
+  var els=$$('#v-home .tile,#v-home .step,#v-home .sec,#v-home .mode,#v-home .sample,#v-home .mail,#v-home .faq details');
+  els.forEach(function(el,i){el.classList.add('rv');el.style.transitionDelay=((i%4)*70)+'ms'});
+  if(!('IntersectionObserver' in window)){els.forEach(function(el){el.classList.add('in')});return}
+  var io=new IntersectionObserver(function(en){en.forEach(function(x){
+    if(x.isIntersecting){var t=x.target;t.classList.add('in');io.unobserve(t);setTimeout(function(){t.style.transitionDelay=''},900)}
+  })},{threshold:.12});
+  els.forEach(function(el){io.observe(el)});
+}
+
 /* ---------- start ---------- */
-load();applyTheme();env();route();
+load();if(!S.perf) S.perf=detect();applyTheme();applyPerf();initReveal();
 })();
 </script>
 </body>
